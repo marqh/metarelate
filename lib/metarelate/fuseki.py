@@ -965,3 +965,265 @@ def _vocab_graphs():
     vocab_graphs.append('<http://grib/apikeys.ttl>')
     vocab_graphs.append('<http://openmath/ops.ttl>')
     return vocab_graphs
+
+
+class ValidMappingState(object):
+    """
+    A context manager providing the valid mappings only for the
+    life of the context
+
+    """
+    def __init__(fuseki_process):
+        self.fuseki_process = fuseki_process
+        self.valid_state = False
+
+    def __enter__(self):
+        cache_len = len(self.fuseki_process.query_cache())
+        self.entry_msg = ''
+        if cache_len != 0:
+            self.entry_msg = 'There are {} cached changes in the TDB'
+            self.entry_msg += 'the valid mapping state cannot be used.'
+            self.entry_msg += 'persist or revert the cache to use the'
+            self.entry_msg += 'ValidMappingState.'
+            self.entry_msg.format(cache_len)
+        else:
+            ## I would prefer to write a seperate graph for use here
+            ## rather than delete
+            ## it gives a nicer usage pattern
+            ## maybe we can save what is 'invalid to a temp file
+            ## for the life of the context, then reload on exit
+            ## does this work safely???
+            self.stash_delete_invalid()
+            self.valid_state = True
+            self.entry_msg = 'Working with valid mappings only'
+        return self
+            
+    def __exit__(self):
+        self.exit_msg = ''
+        if self.valid_state:
+            ### don't 'load' 'retrieve_temp instead
+            ###self.fuseki_process.load()
+            self.retrieve_stash()
+            self.exit_msg = 'TDB re-synchronised with static data'
+        else:
+            self.exit_msg = 'TDB untouched'
+
+    def stash_delete_invalid(self):
+        """
+        remove all mapping which have been replaced or have do not
+        have a status of 'draft, proposed or approved' from the TDB.
+        write all invalid mapping triples to a temporary file
+
+        """
+        qstr = '''
+        CONSTRUCT
+        {
+        ?mapping ?p ?o .
+        }
+        WHERE
+        { GRAPH <http://metarelate.net/mappings.ttl> 
+            { {
+            ?mapping mr:status "Deprecated" .
+            }
+            UNION
+            {
+            ?mapping mr:status "Broken" .
+            }
+            UNION
+            {
+            ?mapping ^dc:replaces+ ?anothermap .
+            }
+            }
+        }
+        '''
+        results = self.run_query(qstr, output="text", debug=debug)
+        ## save these somewhere context dependent!!!
+        ## self.stashed_invalid_mappings ((is a filepath))
+        ## now delete them
+        instr = '''
+        DELETE
+        { GRAPH <http://metarelate.net/mappings.ttl> 
+            {
+            ?mapping ?p ?o .
+            }
+        }
+        WHERE
+        { GRAPH <http://metarelate.net/mappings.ttl> 
+            { {
+            ?mapping mr:status "Deprecated" .
+            }
+            UNION
+            {
+            ?mapping mr:status "Broken" .
+            }
+            UNION
+            {
+            ?mapping ^dc:replaces+ ?anothermap .
+            }
+            }
+        }
+        '''
+        delete_results = self.run_query(instr, update=True, debug=debug)
+
+    def retrieve_stash(self):
+        """
+        retrieve the stashed context invalid mappings
+        update the local TDB
+
+        """
+
+    def retrieve_mappings(self, source, target):
+        """
+        return the format specific mappings for a particular source
+        and target format
+
+        """
+        if isinstance(source, basestring) and \
+                not metocean.Item(source).is_uri():
+            source = os.path.join('<http://www.metarelate.net/metOcean/format',
+                                  '{}>'.format(source.lower()))
+        if isinstance(target, basestring) and \
+                not metocean.Item(target).is_uri():
+            target = os.path.join('<http://www.metarelate.net/metOcean/format',
+                                  '{}>'.format(target.lower()))
+        qstr = '''
+        SELECT ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
+        (GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps)
+        WHERE { 
+        GRAPH <http://metarelate.net/mappings.ttl> { {
+        ?mapping mr:source ?source ;
+                 mr:target ?target ;
+                 mr:status ?status .
+        BIND("False" AS ?inverted)
+        OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
+        }
+        UNION {
+        ?mapping mr:source ?target ;
+                 mr:target ?source ;
+                 mr:status ?status ;
+                 mr:invertible "True" .
+        BIND("True" AS ?inverted)
+        OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
+        } }
+        GRAPH <http://metarelate.net/concepts.ttl> { 
+        ?source mr:hasFormat %s .
+        ?target mr:hasFormat %s .
+        }
+        }
+        GROUP BY ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
+        ORDER BY ?mapping
+
+        ''' % (source, target)
+        mappings = self.fuseki_process.run_query(qstr)
+        mapping_list = []
+        for mapping in mappings:
+            mapping_list.append(self.fuseki_process.structured_mapping(mapping))
+        return mapping_list
+
+    def multiple_mappings(self, test_source=None):
+        """
+        returns all the mappings which map the same source to a different target
+        where the targets are the same format
+        filter to a single test mapping with test_map
+
+        """
+        tm_filter = ''
+        if test_source:
+            pattern = '<http.*>'
+            pattern = re.compile(pattern)
+            if pattern.match(test_source):
+                tm_filter = '\n\tFILTER(?asource = {})'.format(test_source)
+        qstr = '''SELECT ?amap ?asource ?atarget ?bmap ?bsource ?btarget
+        (GROUP_CONCAT(DISTINCT(?value); SEPARATOR='&') AS ?signature)
+        WHERE {
+        GRAPH <http://metarelate.net/mappings.ttl> { {
+        ?amap mr:status ?astatus ;
+             mr:source ?asource ;
+             mr:target ?atarget . } 
+        UNION 
+            { 
+        ?amap mr:invertible "True" ;
+             mr:status ?astatus ;
+             mr:target ?asource ;
+             mr:source ?atarget . } 
+        FILTER (?astatus NOT IN ("Deprecated", "Broken"))
+        MINUS {?amap ^dc:replaces+ ?anothermap} %s
+        } 
+        GRAPH <http://metarelate.net/mappings.ttl> { {
+        ?bmap mr:status ?bstatus ;
+             mr:source ?bsource ;
+             mr:target ?btarget . } 
+        UNION  
+            { 
+        ?bmap mr:invertible "True" ;
+             mr:status ?bstatus ;
+             mr:target ?bsource ;
+             mr:source ?btarget . } 
+        FILTER (?bstatus NOT IN ("Deprecated", "Broken"))
+        MINUS {?bmap ^dc:replaces+ ?bnothermap}
+        filter (?bmap != ?amap)
+        filter (?bsource = ?asource)
+        filter (?btarget != ?atarget)
+        } 
+        GRAPH <http://metarelate.net/concepts.ttl> {
+        ?asource mr:hasFormat ?asourceformat .
+        ?bsource mr:hasFormat ?bsourceformat .
+        ?atarget mr:hasFormat ?atargetformat .
+        ?btarget mr:hasFormat ?btargetformat .
+        }
+        filter (?btargetformat = ?atargetformat)
+        GRAPH <http://metarelate.net/concepts.ttl> { {
+        ?asource mr:hasProperty ?prop . }
+        UNION {
+        ?atarget mr:hasProperty ?prop . }
+        UNION {
+        ?asource mr:hasComponent|mr:hasProperty ?prop . }
+        UNION {
+        ?atarget mr:hasComponent|mr:hasProperty ?prop . }
+        UNION { 
+        ?asource mr:hasProperty|mr:hasComponent|mr:hasProperty ?prop . }
+        UNION { 
+        ?atarget mr:hasProperty|mr:hasComponent|mr:hasProperty ?prop . }
+        OPTIONAL { ?prop rdf:value ?value . }
+        } }
+        GROUP BY ?amap ?asource ?atarget ?bmap ?bsource ?btarget
+        ORDER BY ?asource
+        ''' % tm_filter
+        return qstr
+
+
+    def valid_vocab(self):
+        """
+        find all valid mapping and every property they reference
+
+        """
+        qstr = '''
+        SELECT DISTINCT  ?amap 
+        (GROUP_CONCAT(DISTINCT(?vocab); SEPARATOR = '&') AS ?signature)
+        WHERE {      
+        GRAPH <http://metarelate.net/mappings.ttl> { {  
+        ?amap mr:status ?astatus ; 
+        FILTER (?astatus NOT IN ("Deprecated", "Broken")) 
+        MINUS {?amap ^dc:replaces+ ?anothermap}      }
+        { 
+        ?amap mr:source ?fc .      }
+        UNION {
+        ?amap mr:target ?fc .      } } 
+        GRAPH <http://metarelate.net/concepts.ttl> { {
+        ?fc mr:hasProperty ?prop . }
+        UNION {
+        ?fc mr:hasComponent|mr:hasProperty ?prop . }
+        UNION { 
+        ?fc mr:hasProperty|mr:hasComponent|mr:hasProperty ?prop .
+        }
+        { ?prop mr:name ?vocab . }
+        UNION {
+        ?prop mr:operator ?vocab . }
+        UNION {
+        ?prop rdf:value ?vocab . }
+        FILTER(ISURI(?vocab))  }
+        OPTIONAL {GRAPH ?g{?vocab ?p ?o .} }
+        FILTER(!BOUND(?g))      }
+        GROUP BY ?amap
+        '''
+        return qstr
