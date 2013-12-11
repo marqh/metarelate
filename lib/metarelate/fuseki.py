@@ -16,6 +16,7 @@
 # along with metarelate. If not, see <http://www.gnu.org/licenses/>.
 
 
+import datetime
 import glob
 import json
 import os
@@ -973,7 +974,7 @@ class ValidMappingState(object):
     life of the context
 
     """
-    def __init__(fuseki_process):
+    def __init__(self, fuseki_process):
         self.fuseki_process = fuseki_process
         self.valid_state = False
 
@@ -1033,10 +1034,16 @@ class ValidMappingState(object):
             {
             ?mapping ^dc:replaces+ ?anothermap .
             }
+            ?mapping ?p ?o .
             }
         }
         '''
-        results = self.run_query(qstr, output="text", debug=debug)
+        results = self.fuseki_process.run_query(qstr, output="text")
+        anow = datetime.datetime.utcnow()
+        anowstr = anow.isoformat() + '.ttl'
+        self._tempfile = os.path.join(self.fuseki_process._static_dir, anowstr)
+        with open(self._tempfile, 'w') as tf:
+            tf.write(results)
         ## save these somewhere context dependent!!!
         ## self.stashed_invalid_mappings ((is a filepath))
         ## now delete them
@@ -1060,10 +1067,11 @@ class ValidMappingState(object):
             {
             ?mapping ^dc:replaces+ ?anothermap .
             }
+            ?mapping ?p ?o .
             }
         }
         '''
-        delete_results = self.run_query(instr, update=True, debug=debug)
+        delete_results = self.fuseki_process.run_query(instr, update=True)
 
     def retrieve_stash(self):
         """
@@ -1071,6 +1079,15 @@ class ValidMappingState(object):
         update the local TDB
 
         """
+        if not self._tempfile:
+            raise ValueError('no stashed temporary file available')
+        tdb_load = [os.path.join(self.fuseki_process._jena_dir, 'bin/tdbloader'),
+                    '--graph=http://metarelate.net/mappings.ttl',
+                    '--loc={}'.format(self.fuseki_process._tdb_dir),
+                    self._tempfile]
+        print ' '.join(tdb_load)
+        subprocess.check_call(tdb_load)
+        os.remove(self._tempfile)
 
     def retrieve_mappings(self, source, target):
         """
@@ -1146,8 +1163,6 @@ class ValidMappingState(object):
              mr:status ?astatus ;
              mr:target ?asource ;
              mr:source ?atarget . } 
-        FILTER (?astatus NOT IN ("Deprecated", "Broken"))
-        MINUS {?amap ^dc:replaces+ ?anothermap} %s
         } 
         GRAPH <http://metarelate.net/mappings.ttl> { {
         ?bmap mr:status ?bstatus ;
@@ -1159,8 +1174,6 @@ class ValidMappingState(object):
              mr:status ?bstatus ;
              mr:target ?bsource ;
              mr:source ?btarget . } 
-        FILTER (?bstatus NOT IN ("Deprecated", "Broken"))
-        MINUS {?bmap ^dc:replaces+ ?bnothermap}
         filter (?bmap != ?amap)
         filter (?bsource = ?asource)
         filter (?btarget != ?atarget)
@@ -1203,8 +1216,6 @@ class ValidMappingState(object):
         WHERE {      
         GRAPH <http://metarelate.net/mappings.ttl> { {  
         ?amap mr:status ?astatus ; 
-        FILTER (?astatus NOT IN ("Deprecated", "Broken")) 
-        MINUS {?amap ^dc:replaces+ ?anothermap}      }
         { 
         ?amap mr:source ?fc .      }
         UNION {
