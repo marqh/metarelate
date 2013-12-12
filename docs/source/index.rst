@@ -16,6 +16,7 @@ Contents:
    :maxdepth: 1
 
    gettingStarted/index
+   contrib/index
    discussion/index
    developer/index
    api/index

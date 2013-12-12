@@ -64,11 +64,5 @@ Contribution
 
 The project aims to collate and manage translation information from many sources.  Contributions to the knowledge base are crucial.
 
-To contribute:
+See `contributing translations <../contrib/index.html>`_ for more information on the contribution work flow.
 
-  * Create a branch in your git repository, linked to the main data project your are interested in, and check it out.
-  * Load the static data into your local triple store.
-  * Use the editor application to add information to the knowledge base.
-  * Validate your changes against the information rules in the application.
-  * Persist your changes to your local static data store.
-  * Propose these changes to the relevant Metarelate github data project as a Pull Request.
