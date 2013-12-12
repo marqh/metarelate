@@ -11,24 +11,28 @@ Dependencies
 * Fuseki - http://jena.apache.org/documentation/serving_data/
 * Python - http://python.org/
 * Django - https://www.djangoproject.com/
+* pydot - https://code.google.com/p/pydot/
+* pyparsing - http://pyparsing.wikispaces.com/
 
 Installation
 ------------
 
 * Apache Jena - http://jena.apache.org/
     1. Download the 'apache-jena' release from http://www.apache.org/dist/jena/binaries/
-    2. Unpack the archive
+    2. Unpack the archive to a useful location
 * Fuseki - http://jena.apache.org/documentation/serving_data/
     1. Download the 'jena-fuseki' release from http://www.apache.org/dist/jena/binaries/
-    2. Unpack the archive
+    2. Unpack the archive to a useful location
 * Python - http://python.org/
     1. install Python = 2.7
 * Django - https://www.djangoproject.com/
     1. install Django >= 1.3
+* pyparsing - http://pyparsing.wikispaces.com/
+    1. install pyparsing 1.5.7 http://sourceforge.net/projects/pyparsing/files/pyparsing/pyparsing-1.5.7/
 * pydot - https://code.google.com/p/pydot/
     1. install pydot >= 1.0
 * Configure the metarelate metarelate software
-    1. lib/metarelate/etc/site.config provides paths to libraries and static data
+    1. lib/metarelate/etc/site.config provides paths to libraries (jena and fuseki)
     2. see lib/metarelate/etc/README.md
 
 Configuration
@@ -38,8 +42,6 @@ Local configuration files are required to set up a metarelate environment:
 
 * ./lib/metarelate/etc/site.cfg
  * see ./lib/metarelate/etc/sample.site.cfg
-* ./lib/metarelate/editor/settings_local.py
- * see ./lib/metarelate/editor/sample_settings_local.py
 * environment variables are used by each session to link to a local static data store and triple store:
  * METARELATE_STATIC_DIR
  * METARELATE_TDB_DIR
@@ -50,12 +52,14 @@ Editor
 
 * To run the editor application:
     1. ./run_mr_editor.py
-
+    2. located in ./lib in the souce, installed to ./bin
 
 Application Programming Interface
 ----------------------------------
 
 The API provides a Python interface to the knowledge base.  
 
-To use the API, create an instance of the metarelate.fuseki.FusekiServer class, as detailed in the API documentation.
+To use the API, create an instance of the metarelate.fuseki.FusekiServer context manager, e.g.:
+* with metarelate.fuseki.FusekiServer() as fu_p:
+as detailed in the API documentation.
 
