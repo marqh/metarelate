@@ -137,6 +137,10 @@ def _prop_id(members):
                 #validation error please
                 raise ValueError('If a property has a component that component'
                                  'must itself reference properties')
+            if comp_mem.has_key('component'):
+                comp_mem.pop('component')
+            # if not comp_mem.has_key('mr:hasFormat'):
+                
             qstr, instr = metarelate.Component.sparql_creator(comp_mem)
             cres = fuseki_process.create(qstr, instr)
             mem['mr:hasComponent'] = cres['component']

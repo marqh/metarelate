@@ -26,7 +26,7 @@ Installation
 * Django - https://www.djangoproject.com/
     1. install Django >= 1.3
 * pydot - https://code.google.com/p/pydot/
-    1. install pydot >= 1.0
+    1. install pydot >= 1.0.28
 * Configure the metarelate metarelate software
     1. lib/metarelate/etc/site.config provides paths to libraries and static data
     2. see lib/metarelate/etc/README.md
@@ -42,8 +42,12 @@ Local configuration files are required to set up a metarelate environment:
  * see ./lib/metarelate/editor/sample_settings_local.py
 * environment variables are used by each session to link to a local static data store and triple store:
  * METARELATE_STATIC_DIR
+  * local path to the static data directory of a metarelate data project
  * METARELATE_TDB_DIR
+  * local path to a directory for the triple store
  * METARELATE_DATA_PROJECT
+  * a string naming the project being used
+  * e.g. metOcean
 
 Editor
 ------

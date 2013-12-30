@@ -41,16 +41,17 @@ class _ComponentMixin(object):
 
     """
     def __setitem__(self, key, value):
-        self._immutable_exception()
+         self._immutable_exception()
 
     def __delitem__(self, key):
-        self._immutable_exception()
+         self._immutable_exception()
 
     def __getattr__(self, name):
         return self.__getitem__(name)
 
     def __setattr__(self, name, value):
-        self._immutable_exception()
+    #     self._immutable_exception()
+        self.__dict__[name] = value
 
     def __iter__(self):
         return iter(self._data)
@@ -58,9 +59,9 @@ class _ComponentMixin(object):
     def __len__(self):
         return len(self._data)
 
-    def _immutable_exception(self):
-        msg = '{!r} object is immutable.'
-        raise TypeError(msg.format(type(self).__name__))
+    # def _immutable_exception(self):
+    #     msg = '{!r} object is immutable.'
+    #     raise TypeError(msg.format(type(self).__name__))
 
 
 class _DotMixin(object):
@@ -144,24 +145,37 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
                           fontsize=8)
         node.uri = self.uri.data
         graph.add_node(node)
-        sgraph = pydot.Cluster('Source', label='Source Concept',
-                               labelloc='b',
-                               style='filled', color='lightgrey')
-        snode = self.source.dot(sgraph, node)
+        # sgraph = pydot.Cluster('Source', label='Source Concept',
+        #                        labelloc='b',
+        #                        style='filled', color='lightgrey')
+        # snode = self.source.dot(sgraph, node)
+        snode, graph = self.source.dot(graph, node)
         edge = pydot.Edge(node, snode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
         graph.add_edge(edge)
-        graph.add_subgraph(sgraph)
-        tgraph = pydot.Cluster('Target', label='Target Concept',
-                               labelloc='b',
-                               style='filled', color='lightgrey')
-        tnode = self.target.dot(tgraph, node)
+        # graph.add_subgraph(sgraph)
+        # tgraph = pydot.Cluster('Target', label='Target Concept',
+        #                        labelloc='b',
+        #                        style='filled', color='lightgrey')
+        # tnode = self.target.dot(tgraph, node)
+        tnode, graph = self.target.dot(graph, node)
         edge = pydot.Edge(node, tnode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
         graph.add_edge(edge)
-        graph.add_subgraph(tgraph)
+        # graph.add_subgraph(tgraph)
+        st_edge = pydot.Edge(snode, tnode, style='invis')
+        graph.add_edge(st_edge)
+        if hasattr(self, 'value_maps'):
+            vmgraph = pydot.Cluster('ValueMaps', label='Value Maps',
+                                    labelloc='b',
+                                    style='filled', color='lightgrey')
+            graph.add_subgraph(vmgraph)
+            for vmap in self.value_maps:
+                #import pdb
+                #pdb.set_trace()
+                graph = vmap.dot(graph, vmgraph)
         return graph
 
     def json_referrer(self):
@@ -173,6 +187,8 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
         referrer = {'mapping': self.uri.data, 'mr:hasValueMap': []}
         referrer['mr:source'] = self.source.json_referrer()
         referrer['mr:target'] = self.target.json_referrer()
+        if hasattr(self, 'value_maps'):
+            referrer['mr:hasValueMap'] = [vm.json_referrer() for vm in self.value_maps]
         return referrer
 
     @staticmethod
@@ -403,6 +419,7 @@ class Component(_ComponentMixin, _DotMixin, MutableMapping):
         graph.add_edge(edge)
         for comp in self.components:
             comp.dot(graph, node, 'Component')
+        return graph
 
     @staticmethod
     def sparql_retriever(uri):
@@ -428,11 +445,17 @@ class Component(_ComponentMixin, _DotMixin, MutableMapping):
     def sparql_creator(po_dict):
         allowed_prefixes = set(('mr:hasFormat','mr:hasComponent', 'mr:hasProperty',
                                 'dc:requires', 'dc:mediator'))
+        required_prefixes = set(('mr:hasFormat',))
         preds = set(po_dict)
         if not preds.issubset(allowed_prefixes):
             ec = '{} is not a subset of the allowed predicates set for '\
                  'a component record {}'
             ec = ec.format(preds, allowed_prefixes)
+            raise ValueError(ec)
+        if not preds.issuperset(required_prefixes):
+            ec = '{} is not a superset of the required predicates set for '\
+                 'a component record {}'
+            ec = ec.format(preds, required_prefixes)
             raise ValueError(ec)
         subj_pref = 'http://www.metarelate.net/{}/component'
         subj_pref = subj_pref.format(site_config['fuseki_dataset'])
@@ -585,10 +608,16 @@ class Concept(Component):
                           colorscheme='dark28', fillcolor='2',
                           fontsize=8)
         node.uri = self.uri.data
-        graph.add_node(node)
+        # graph.add_node(node)
         for comp in self.components:
-            comp.dot(graph, node, 'Component')
-        return node
+            sglabel = comp.uri.data.split('/')[-1].strip('<>')
+            sgraph = pydot.Cluster(sglabel, label=sglabel,
+                                   labelloc='b',
+                                   style='filled', color='lightgrey')
+            sgraph = comp.dot(sgraph, node, 'Component')
+            sgraph.add_node(node)
+            graph.add_subgraph(sgraph)
+        return node, graph
 
     def json_referrer(self):
         """
@@ -735,6 +764,7 @@ class PropertyComponent(_ComponentMixin, _DotMixin, MutableMapping):
             graph.add_edge(edge)
             for prop in self.values():
                 prop.dot(graph, node, 'Property')
+        return graph
 
     def json_referrer(self):
         """
@@ -1074,7 +1104,77 @@ class Item(_DotMixin, namedtuple('Item', 'data notation')):
         return label
 
 
-class ValueMap(object):
+class ValueMap(_DotMixin, object):
+    """
+    Represents a relationship between a property within one component
+    and a property within a different component whose share values or computed
+    values
+
+    """
+    def __init__(self, uri, source, target):
+        self.uri = Item(uri)
+        if isinstance(source, Value):
+            self.source = source
+        else:
+            raise TypeError('source must be a Value, not a {}'.format(type(source)))
+        if isinstance(target, Value):
+            self.target = target
+        else:
+            raise TypeError('target must be a Value, not a {}'.format(type(target)))
+
+    def json_referrer(self):
+        """
+        return the data contents of the instance ready for encoding
+        as a json string
+
+        """
+        referrer = {'valueMap': self.uri,
+                    'mr:source': self.source.json_referrer(),
+                    'mr:target': self.target.json_referrer()}
+        return referrer
+
+    def dot(self, graph, vmgraph):
+        """
+        return an adapted graph including the valuemap edge
+
+        """
+        sc = self.source.subject_val.scope.uri.data.strip('<>')
+        sc = sc.replace(':', '')
+        sp = self.source.subject_val.hasProperty.uri.data.strip('<>')
+        sp = sp.replace(':', '')
+        sources = ['"\\<{}_{}\\>"'.format(sc, sp)]
+        tc = self.target.subject_val.scope.uri.data.strip('<>')
+        tp = self.target.subject_val.hasProperty.uri.data.strip('<>')
+        tc = tc.replace(':', '')
+        tp = tp.replace(':', '')
+        targets = ['"\\<{}_{}\\>"'.format(tc, tp)]
+        
+        source_nodes = []
+        target_nodes = []
+        for subg in graph.get_subgraphs():
+            nodes = subg.get_nodes()
+            for node in subg.get_nodes():
+                import pdb
+                #pdb.set_trace()
+                if node.get_name() in sources:
+                    source_nodes.append(node)
+                if node.get_name() in targets:
+                    target_nodes.append(node)
+        if not len(source_nodes) == 1 or not len(target_nodes) == 1:
+            raise ValueError('correct nodes not found for ValueMap dot')
+        nodename = self.dot_escape(self.uri.data)#.strip('<>').replace(':','')
+        vm_node = pydot.Node(nodename, shape='box', label='vm')
+        vmgraph.add_node(vm_node)
+        edge = pydot.Edge(source_nodes[0], vm_node,
+                          color='green',
+                          tailport='s', headport='n')
+        graph.add_edge(edge)
+        edge = pydot.Edge(vm_node, target_nodes[0],
+                          color='green',
+                          tailport='s', headport='s')
+        graph.add_edge(edge)
+        return graph
+
     @staticmethod
     def sparql_retriever(uri):
         qstr = '''SELECT ?valueMap ?source ?target
@@ -1138,6 +1238,33 @@ class ValueMap(object):
 
 
 class Value(object):
+    """
+    Represents a value, referencing Property instances scoped to specific
+    Component instances and optionally including derivations
+
+    """
+    def __init__(self, uri, subj, operator=None, obj=None):
+        self.uri = Item(uri)
+        # a ScopedProperty
+        self.subject_val = subj
+        self.operator = Item(operator)
+        # an optional ScopedProperty
+        self.object_val = obj
+
+    def json_referrer(self):
+        """
+        return the data contents of the Value instance ready for encoding
+        as a json string
+
+        """
+        referrer = {'value': self.uri.data,
+                    'mr:subject': self.subject_val.json_referrer()}
+        if self.operator:
+            referrer['mr:operator'] = self.operator.data
+        if self.object_val:
+            referrer['mr:object'] = self.object_val.json_referrer()
+        return referrer
+
     @staticmethod
     def sparql_retriever(uri):
         qstr = '''SELECT ?value ?operator ?subject ?object
@@ -1202,6 +1329,28 @@ class Value(object):
 
 
 class ScopedProperty(object):
+    """
+    Represents a Property within the scope of a specified Component instance
+
+    """
+    def __init__(self, uri, hasProperty, scope):
+        self.uri = Item(uri)
+        #a simple Property, with only a name
+        self.hasProperty = hasProperty
+        #a Component
+        self.scope = scope
+
+    def json_referrer(self):
+        """
+        return the data contents of the ScopedProperty instance ready for 
+        encoding as a json string
+
+        """
+        referrer = {'scopedProperty': self.uri.data, 
+                    'mr:hasProperty': self.hasProperty.name.data,
+                    'mr:scope': self.scope.uri.data}
+        return referrer
+
     @staticmethod
     def sparql_retriever(uri):
         qstr = '''SELECT ?scopedProperty ?scope ?hasProperty
