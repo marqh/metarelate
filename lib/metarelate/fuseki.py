@@ -394,11 +394,12 @@ class FusekiServer(object):
 
         """
         failures = {}
-        mm_string = 'The following mappings are ambiguous, providing multiple '\
-                    'targets in the same format for a particular source'
-        failures[mm_string] = self.run_query(multiple_mappings())
-        invalid_vocab = 'The following mappings contain an undeclared URI'
-        failures[invalid_vocab] = self.run_query(valid_vocab())
+        with ValidMappingState(self) as valid:
+            mm_string = 'The following mappings are ambiguous: multiple '\
+                        'targets in the same format for a particular source'
+            failures[mm_string] = valid.multiple_mappings()
+            invalid_vocab = 'The following mappings contain an undeclared URI'
+            failures[invalid_vocab] = valid.valid_vocab()
         return failures
 
     def run_query(self, query_string, output='json', update=False, debug=False):
@@ -520,51 +521,54 @@ class FusekiServer(object):
         and target format
 
         """
-        if isinstance(source, basestring) and \
-                not metarelate.Item(source).is_uri():
-            s_str = '<http://www.metarelate.net/{ds}/format/{s}>'
-            source = s_str.format(ds=self._fuseki_dataset, s=source.lower())
-        if isinstance(target, basestring) and \
-                not metarelate.Item(target).is_uri():
-            t_str = '<http://www.metarelate.net/{ds}/format/{t}>'
-            target = t_str.format(ds=self._fuseki_dataset, t=target.lower())
-        qstr = '''
-        SELECT ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
-        (GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps)
-        WHERE { 
-        GRAPH <http://metarelate.net/mappings.ttl> { {
-        ?mapping mr:source ?source ;
-                 mr:target ?target ;
-                 mr:status ?status .
-        BIND("False" AS ?inverted)
-        OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
-        FILTER (?status NOT IN ("Deprecated", "Broken"))
-        MINUS {?mapping ^dc:replaces+ ?anothermap}
-        }
-        UNION {
-        ?mapping mr:source ?target ;
-                 mr:target ?source ;
-                 mr:status ?status ;
-                 mr:invertible "True" .
-        BIND("True" AS ?inverted)
-        OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
-        FILTER (?status NOT IN ("Deprecated", "Broken"))
-        MINUS {?mapping ^dc:replaces+ ?anothermap}
-        } }
-        GRAPH <http://metarelate.net/concepts.ttl> { 
-        ?source mr:hasFormat %s .
-        ?target mr:hasFormat %s .
-        }
-        }
-        GROUP BY ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
-        ORDER BY ?mapping
-
-        ''' % (source, target)
-        mappings = self.run_query(qstr)
-        mapping_list = []
-        for mapping in mappings:
-            mapping_list.append(self.structured_mapping(mapping))
+        with ValidMappingState(self) as valid:
+            mapping_list = valid.retrieve_mappings(source, target)
         return mapping_list
+        # if isinstance(source, basestring) and \
+        #         not metarelate.Item(source).is_uri():
+        #     s_str = '<http://www.metarelate.net/{ds}/format/{s}>'
+        #     source = s_str.format(ds=self._fuseki_dataset, s=source.lower())
+        # if isinstance(target, basestring) and \
+        #         not metarelate.Item(target).is_uri():
+        #     t_str = '<http://www.metarelate.net/{ds}/format/{t}>'
+        #     target = t_str.format(ds=self._fuseki_dataset, t=target.lower())
+        # qstr = '''
+        # SELECT ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
+        # (GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps)
+        # WHERE { 
+        # GRAPH <http://metarelate.net/mappings.ttl> { {
+        # ?mapping mr:source ?source ;
+        #          mr:target ?target ;
+        #          mr:status ?status .
+        # BIND("False" AS ?inverted)
+        # OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
+        # FILTER (?status NOT IN ("Deprecated", "Broken"))
+        # MINUS {?mapping ^dc:replaces+ ?anothermap}
+        # }
+        # UNION {
+        # ?mapping mr:source ?target ;
+        #          mr:target ?source ;
+        #          mr:status ?status ;
+        #          mr:invertible "True" .
+        # BIND("True" AS ?inverted)
+        # OPTIONAL {?mapping mr:hasValueMap ?valueMap . }
+        # FILTER (?status NOT IN ("Deprecated", "Broken"))
+        # MINUS {?mapping ^dc:replaces+ ?anothermap}
+        # } }
+        # GRAPH <http://metarelate.net/concepts.ttl> { 
+        # ?source mr:hasFormat %s .
+        # ?target mr:hasFormat %s .
+        # }
+        # }
+        # GROUP BY ?mapping ?source ?sourceFormat ?target ?targetFormat ?inverted
+        # ORDER BY ?mapping
+
+        # ''' % (source, target)
+        # mappings = self.run_query(qstr)
+        # mapping_list = []
+        # for mapping in mappings:
+        #     mapping_list.append(self.structured_mapping(mapping))
+        # return mapping_list
 
     def _retrieve_component(self, uri, base=True):
         qstr = metarelate.Component.sparql_retriever(uri)
@@ -937,23 +941,6 @@ def mapping_by_properties(prop_list):
     return qstr
 
 
-# def get_all_notation_note(fuseki_process, graph, debug=False):
-#     """
-#     return all names, skos:notes and skos:notations from the stated graph
-#     """
-#     qstr = '''SELECT ?name ?notation ?units
-#     WHERE
-#     {GRAPH <%s>{
-#     ?name skos:note ?units ;
-#           skos:notation ?notation .
-#     }
-#     }
-#     order by ?name
-#     ''' % graph
-#     results = fuseki_process.run_query(qstr, debug=debug)
-#     return results
-
-
 def _vocab_graphs():
     """returns a list of the graphs which contain thirds party vocabularies """
     vocab_graphs = []
@@ -1202,12 +1189,13 @@ class ValidMappingState(object):
         GROUP BY ?amap ?asource ?atarget ?bmap ?bsource ?btarget
         ORDER BY ?asource
         ''' % tm_filter
-        return qstr
-
+        mappings = self.fuseki_process.run_query(qstr)
+        return mappings
 
     def valid_vocab(self):
         """
-        find all valid mapping and every property they reference
+        find all mappings and every property they reference
+        return invalid vocab mappings
 
         """
         qstr = '''
@@ -1237,4 +1225,5 @@ class ValidMappingState(object):
         FILTER(!BOUND(?g))      }
         GROUP BY ?amap
         '''
-        return qstr
+        mappings = self.fuseki_process.run_query(qstr)
+        return mappings
