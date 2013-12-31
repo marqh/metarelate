@@ -145,26 +145,26 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
                           fontsize=8)
         node.uri = self.uri.data
         graph.add_node(node)
-        # sgraph = pydot.Cluster('Source', label='Source Concept',
-        #                        labelloc='b',
-        #                        style='filled', color='lightgrey')
-        # snode = self.source.dot(sgraph, node)
-        snode, graph = self.source.dot(graph, node)
+        sgraph = pydot.Cluster('Source', label='Source Concept',
+                               labelloc='b',
+                               style='filled', color='lightgrey')
+        snode, sgraph = self.source.dot(sgraph, node)
+        # snode, graph = self.source.dot(graph, node)
         edge = pydot.Edge(node, snode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
         graph.add_edge(edge)
-        # graph.add_subgraph(sgraph)
-        # tgraph = pydot.Cluster('Target', label='Target Concept',
-        #                        labelloc='b',
-        #                        style='filled', color='lightgrey')
-        # tnode = self.target.dot(tgraph, node)
-        tnode, graph = self.target.dot(graph, node)
+        graph.add_subgraph(sgraph)
+        tgraph = pydot.Cluster('Target', label='Target Concept',
+                               labelloc='b',
+                               style='filled', color='lightgrey')
+        tnode, tgraph = self.target.dot(tgraph, node)
+        # tnode, graph = self.target.dot(graph, node)
         edge = pydot.Edge(node, tnode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
         graph.add_edge(edge)
-        # graph.add_subgraph(tgraph)
+        graph.add_subgraph(tgraph)
         st_edge = pydot.Edge(snode, tnode, style='invis')
         graph.add_edge(st_edge)
         if hasattr(self, 'value_maps'):
@@ -608,14 +608,14 @@ class Concept(Component):
                           colorscheme='dark28', fillcolor='2',
                           fontsize=8)
         node.uri = self.uri.data
-        # graph.add_node(node)
+        graph.add_node(node)
         for comp in self.components:
             sglabel = comp.uri.data.split('/')[-1].strip('<>')
             sgraph = pydot.Cluster(sglabel, label=sglabel,
                                    labelloc='b',
                                    style='filled', color='lightgrey')
             sgraph = comp.dot(sgraph, node, 'Component')
-            sgraph.add_node(node)
+            # sgraph.add_node(node)
             graph.add_subgraph(sgraph)
         return node, graph
 
@@ -1128,7 +1128,7 @@ class ValueMap(_DotMixin, object):
         as a json string
 
         """
-        referrer = {'valueMap': self.uri,
+        referrer = {'valueMap': self.uri.data,
                     'mr:source': self.source.json_referrer(),
                     'mr:target': self.target.json_referrer()}
         return referrer
@@ -1151,15 +1151,14 @@ class ValueMap(_DotMixin, object):
         
         source_nodes = []
         target_nodes = []
-        for subg in graph.get_subgraphs():
-            nodes = subg.get_nodes()
-            for node in subg.get_nodes():
-                import pdb
-                #pdb.set_trace()
-                if node.get_name() in sources:
-                    source_nodes.append(node)
-                if node.get_name() in targets:
-                    target_nodes.append(node)
+        for subgraph in graph.get_subgraphs():
+            for subg in subgraph.get_subgraphs():
+                nodes = subg.get_nodes()
+                for node in subg.get_nodes():
+                    if node.get_name() in sources:
+                        source_nodes.append(node)
+                    if node.get_name() in targets:
+                        target_nodes.append(node)
         if not len(source_nodes) == 1 or not len(target_nodes) == 1:
             raise ValueError('correct nodes not found for ValueMap dot')
         nodename = self.dot_escape(self.uri.data)#.strip('<>').replace(':','')
