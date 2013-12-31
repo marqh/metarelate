@@ -149,7 +149,6 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
                                labelloc='b',
                                style='filled', color='lightgrey')
         snode, sgraph = self.source.dot(sgraph, node)
-        # snode, graph = self.source.dot(graph, node)
         edge = pydot.Edge(node, snode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
@@ -159,7 +158,6 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
                                labelloc='b',
                                style='filled', color='lightgrey')
         tnode, tgraph = self.target.dot(tgraph, node)
-        # tnode, graph = self.target.dot(graph, node)
         edge = pydot.Edge(node, tnode,
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
@@ -173,8 +171,6 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
                                     style='filled', color='lightgrey')
             graph.add_subgraph(vmgraph)
             for vmap in self.value_maps:
-                #import pdb
-                #pdb.set_trace()
                 graph = vmap.dot(graph, vmgraph)
         return graph
 
@@ -188,7 +184,8 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
         referrer['mr:source'] = self.source.json_referrer()
         referrer['mr:target'] = self.target.json_referrer()
         if hasattr(self, 'value_maps'):
-            referrer['mr:hasValueMap'] = [vm.json_referrer() for vm in self.value_maps]
+            referrer['mr:hasValueMap'] = [vm.json_referrer() for vm in
+                                          self.value_maps]
         return referrer
 
     @staticmethod
@@ -615,7 +612,6 @@ class Concept(Component):
                                    labelloc='b',
                                    style='filled', color='lightgrey')
             sgraph = comp.dot(sgraph, node, 'Component')
-            # sgraph.add_node(node)
             graph.add_subgraph(sgraph)
         return node, graph
 
