@@ -219,14 +219,12 @@ class FusekiServer(object):
                         sg.write(line)
                         sg.write('\n')
 
-
-
     def save_cache(self, graph, debug=False):
         """
-        export new records from a graph in the triple store to an external location,
-        as flagged by the manager application
-        clear the 'not saved' flags on records, updating a graph in the triple store
-        with the fact that changes have been persisted to ttl
+        export new records from a graph in the triple store to an external
+        location, as flagged by the manager application
+        clear the 'not saved' flags on records, updating a graph in the triple
+        store with the fact that changes have been persisted to ttl
 
         """
         qstr = '''
@@ -570,65 +568,6 @@ class FusekiServer(object):
             result = metarelate.Concept(uri, scheme, result)
         return result
 
-    # def _retrieve_value_map(self, valmap_id, inv):
-    #     """
-    #     returns a dictionary of valueMap information
-        
-    #     """
-    #     if inv == '"False"':
-    #         inv = False
-    #     elif inv == '"True"':
-    #         inv = True
-    #     else:
-    #         raise ValueError('inv = {}, not "True" or "False"'.format(inv))
-    #     value_map = {'valueMap':valmap_id, 'mr:source':{}, 'mr:target':{}}
-    #     qstr = metarelate.ValueMap.sparql_retriever(valmap_id)
-    #     vm_record = self.retrieve(qstr)
-    #     if inv:
-    #         value_map['mr:source']['value'] = vm_record['target']
-    #         value_map['mr:target']['value'] = vm_record['source']
-    #     else:
-    #         value_map['mr:source']['value'] = vm_record['source']
-    #         value_map['mr:target']['value'] = vm_record['target']
-    #     for role in ['mr:source', 'mr:target']:
-    #         value_map[role] = self._retrieve_value(value_map[role]['value'])
-
-    #     return value_map
-
-    # def _retrieve_value(self, val_id):
-    #     """
-    #     returns a dictionary from a val_id
-        
-    #     """
-    #     value_dict = {'value':val_id}
-    #     qstr = metarelate.Value.sparql_retriever(val_id)
-    #     val = self.retrieve(qstr)
-    #     for key in val.keys():
-    #         value_dict['mr:{}'.format(key)] = val[key]
-    #     for sc_prop in ['mr:subject', 'mr:object']:
-    #         pid = value_dict.get(sc_prop)
-    #         if pid:
-    #             qstr = metarelate.ScopedProperty.sparql_retriever(pid)
-    #             prop = self.retrieve(qstr)
-    #             if prop:
-    #                 value_dict[sc_prop] = {}
-    #                 for pkey in prop:
-    #                     pv = prop[pkey]
-    #                     value_dict[sc_prop]['mr:{}'.format(pkey)] = pv
-    #                     if pkey == 'hasProperty':
-    #                         pr = value_dict[sc_prop]['mr:{}'.format(pkey)]
-    #                         qstr = metarelate.Property.sparql_retriever(pr)
-    #                         aprop = self.retrieve(qstr)
-    #                         value_dict[sc_prop]['mr:{}'.format(pkey)] = {'property':pv}
-    #                         for p in aprop:
-    #                             value_dict[sc_prop]['mr:{}'.format(pkey)]['mr:{}'.format(p)] = aprop[p]
-    #             elif pid.startswith('<http://www.metarelate.net/{}/value/'.format(self._fuseki_dataset)):
-    #                 newval = self._retrieve_value(pid)
-    #                 value_dict[sc_prop] = newval
-    #             else:
-    #                 value_dict[sc_prop] = pid
-    #     return value_dict
-
     def _retrieve_vm(self, vm_uri, mapping):
         qstr = metarelate.ValueMap.sparql_retriever(vm_uri)
         vm_dict = self.retrieve(qstr)
@@ -658,24 +597,23 @@ class FusekiServer(object):
         sp_dict = self.retrieve(qstr)
         scope = None
         hasProperty = None
-        # import pdb
-        # pdb.set_trace()
         if comp.uri.data == sp_dict['scope'] and \
                 len(comp.components) == 1:
             scope = comp
-            for k, prop in comp.components[0]._data.iteritems():
+            for prop in comp.components[0].values():
                 if prop.uri.data == sp_dict['hasProperty']:
                     hasProperty = prop
         elif len(comp.components) > 1:
             for subcomp in comp.components:
                 if subcomp.uri.data == sp_dict['scope']:
                     scope = subcomp
-                    for k, prop in subcomp._data.iteritems():
+                    for prop in subcomp.values():
                         if prop.uri.data == sp_dict['hasProperty']:
                             hasProperty = prop
                 else:
-                    for k, prop in subcomp._data.iteritems():
-                        if isinstance(prop.value, metarelate.PropertyComponent) and \
+                    for prop in subcomp.values():
+                        if isinstance(prop.value,
+                                      metarelate.PropertyComponent) and \
                                 prop.value.uri.data == sp_dict['scope']:
                             scope = prop.value
                             for k, subprop in prop.value._data.iteritems():
@@ -684,8 +622,8 @@ class FusekiServer(object):
         if scope and hasProperty:
             scop_prop = metarelate.ScopedProperty(sp_uri, hasProperty, scope)
         else:
-            raise ValueError('scope or property, required for ValueMap definition '
-                             'not found in provided mapping instance')
+            raise ValueError('scope or property, required for ValueMap '
+                             'definition, not found in mapping instance')
         return scop_prop
                         
         
@@ -696,7 +634,8 @@ class FusekiServer(object):
         target = self._retrieve_component(template['target'])
         new_mapping = metarelate.Mapping(uri, source, target)
         if template.has_key('valueMaps'):
-            new_mapping.value_maps = [self._retrieve_vm(vm_id, new_mapping) for vm_id in template['valueMaps']]
+            new_mapping.value_maps = [self._retrieve_vm(vm_id, new_mapping)
+                                      for vm_id in template['valueMaps']]
         return new_mapping
     
     def retrieve(self, qstr, debug=False):
@@ -743,7 +682,7 @@ class FusekiServer(object):
 
 
 def process_data(jsondata):
-    """ helper method to take JSON output from a query and return the results"""
+    """ helper method to take JSON output from a query and return results"""
     resultslist = []
     try:
         jdata = json.loads(jsondata)
@@ -959,23 +898,6 @@ def mapping_by_properties(prop_list):
         }
         ''' % fstr
     return qstr
-
-
-# def get_all_notation_note(fuseki_process, graph, debug=False):
-#     """
-#     return all names, skos:notes and skos:notations from the stated graph
-#     """
-#     qstr = '''SELECT ?name ?notation ?units
-#     WHERE
-#     {GRAPH <%s>{
-#     ?name skos:note ?units ;
-#           skos:notation ?notation .
-#     }
-#     }
-#     order by ?name
-#     ''' % graph
-#     results = fuseki_process.run_query(qstr, debug=debug)
-#     return results
 
 
 def _vocab_graphs():

@@ -1148,7 +1148,6 @@ class ValueMap(_DotMixin, object):
         tc = tc.replace(':', '')
         tp = tp.replace(':', '')
         targets = ['"\\<{}_{}\\>"'.format(tc, tp)]
-        
         source_nodes = []
         target_nodes = []
         for subgraph in graph.get_subgraphs():
@@ -1165,12 +1164,12 @@ class ValueMap(_DotMixin, object):
         vm_node = pydot.Node(nodename, shape='box', label='vm')
         vmgraph.add_node(vm_node)
         edge = pydot.Edge(source_nodes[0], vm_node,
-                          color='green',
+                          color='green', 
                           tailport='s', headport='n')
         graph.add_edge(edge)
         edge = pydot.Edge(vm_node, target_nodes[0],
-                          color='green',
-                          tailport='s', headport='s')
+                          color='green', 
+                          tailport='s', headport='sw')
         graph.add_edge(edge)
         return graph
 
