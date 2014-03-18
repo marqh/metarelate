@@ -49,8 +49,8 @@ class _ComponentMixin(object):
     def __getattr__(self, name):
         return self.__getitem__(name)
 
-    def __setattr__(self, name, value):
-        self._immutable_exception()
+    # def __setattr__(self, name, value):
+    #     self._immutable_exception()
 
     def __iter__(self):
         return iter(self._data)
@@ -538,9 +538,14 @@ class Concept(Component):
     indexing i.e. *component = concept[0]*
 
     """
-    def __init__(self, uri, scheme, components):
+    def __init__(self, uri, scheme, components, requires=None, mediator=None):
         super(Concept, self).__init__(uri, components)
         self.__dict__['scheme'] = Item(scheme)
+        # nb requires should allow list
+        if requires:
+            self.__dict__['requires'] = Item(requires)
+        if mediator:
+            self.__dict__['mediator'] = Item(mediator)
 
     def __eq__(self, other):
         result = NotImplemented
@@ -609,6 +614,36 @@ class Concept(Component):
                 prop_ref['mr:hasFormat'] = self.scheme.data
                 referrer['mr:hasComponent'].append(prop_ref)
         return referrer
+
+    def _podict(self):
+        """
+        Return a dictionary of predicates and objects for a rdf representation
+
+        """
+        podict = {}
+        if self.scheme:
+            podict['mr:hasFormat'] = self.scheme.data
+        if len(self) == 1:
+            podict['mr:hasProperty'] = []
+            for aproperty in self.components[0].values():
+                podict['mr:hasProperty'].append(aproperty.uri.data)
+        elif len(self) > 1:
+            podict['mr:hasComponent'] = []
+            for comp in self.components:
+                podict['mr:hasComponent'].append(comp.uri.data)
+        if self.__dict__.has_key('requires'):
+            podict['dc:requires'] = self.requires.data ## list
+        if self.__dict__.has_key('mediator'):
+            podict['dc:mediator'] = self.mediator.data
+        return podict
+
+    def creation_sparql(self):
+        """
+        return SPARQL string for creation of a Property
+
+        """
+        return self.sparql_creator(self._podict())
+
 
 
 class PropertyComponent(_ComponentMixin, _DotMixin, MutableMapping):
@@ -809,9 +844,9 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
             result = not result
         return result
 
-    def __setattr__(self, name, value):
-        msg = '{!r} instance is immutable.'
-        raise TypeError(msg.format(type(self).__name__))
+    # def __setattr__(self, name, value):
+    #     msg = '{!r} instance is immutable.'
+    #     raise TypeError(msg.format(type(self).__name__))
 
     def __repr__(self):
         fmt = '{cls}(uri={self.uri!r}, name={self.name!r}{value}{operator})'
@@ -834,6 +869,30 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
     @property
     def complete(self):
         return self.simple and self.value is not None and self.value.complete
+
+    def _podict(self):
+        """
+        Return a dictionary of predicates and objects for a rdf representation
+
+        """
+        podict = {}
+        if self.name:
+            podict['mr:name'] = self.name.data
+        if self.value:
+            if isinstance(self.value, PropertyComponent):
+                podict['mr:hasComponent'] = self.value.data
+            else:
+                podict['rdf:value'] = self.value.data
+        if self.operator:
+            podict['mr:operator'] = self.operator.data
+        return podict
+
+    def creation_sparql(self):
+        """
+        return SPARQL string for creation of a Property
+
+        """
+        return self.sparql_creator(self._podict())
 
     def dot(self, graph, parent, name=None):
         """

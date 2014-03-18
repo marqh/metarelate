@@ -121,6 +121,7 @@ def _prop_id(members):
     new_map = copy.deepcopy(members)
     property_list = []
     prop_ids = []
+    mrprops = []
     for mem, new_mem in zip(members, new_map):
         comp_mem = mem.get('mr:hasComponent')
         new_comp = new_mem.get('mr:hasComponent')
@@ -131,9 +132,15 @@ def _prop_id(members):
                 for i, (prop, new_prop) in enumerate(zip(props, new_props)):
                     # remove old property id
                     prop.pop('property', None)
-                    qstr, instr = metarelate.Property.sparql_creator(prop)
+                    mrprop = metarelate.Property(None, prop['mr:name'],
+                                                 prop['rdf:value'], 
+                                                 prop['mr:operator'])
+                    qstr, instr = mrprop.creation_sparql()
                     prop_res = fuseki_process.create(qstr, instr)
-                    cpid = '{}'.format(prop_res['property'])
+                    mrprop = metarelate.Property(prop_res['property'])
+                    cpid = '{}'.format(prop_res['property'], prop['mr:name'],
+                                                 prop['rdf:value'], 
+                                                 prop['mr:operator'])
                     props[i] = cpid
                     new_props[i]['component'] = cpid
             else:
@@ -146,12 +153,21 @@ def _prop_id(members):
             new_mem['mr:hasComponent']['component'] = cres['component']
         # remove old property id
         mem.pop('property', None)
-        qstr, instr = metarelate.Property.sparql_creator(mem)
+        mrprop = metarelate.Property(None, mem['mr:name'],
+                                     mem['rdf:value'], 
+                                     mem['mr:operator'])
+        qstr, instr = mrprop.creation_sparql()
+        #qstr, instr = metarelate.Property.sparql_creator(mem)
         res = fuseki_process.create(qstr, instr)
+        mrprop = metarelate.Property(res['property'], mem['mr:name'],
+                                     mem['rdf:value'], 
+                                     mem['mr:operator'])
         pid = res['property']
         new_mem['property'] = pid
         prop_ids.append(pid)
-    return prop_ids, new_map
+        mrprops.append(mrprop)
+    # return prop_ids, new_map
+    return mrprops
 
 
 def url_qstr(path, **kwargs):
@@ -169,21 +185,32 @@ def _create_components(key, requestor, new_map, components):
     relevant component records in the triple store
 
     """
-    subc_ids = []
+    # subc_ids = []
+    mrcomps = []
     for i, (mem, newm) in enumerate(zip(requestor[key]['mr:hasComponent'],
                                   new_map[key]['mr:hasComponent'])):
         if mem.get('mr:hasProperty'):
-            pr_ids, newm['mr:hasProperty'] = _prop_id(mem.get('mr:hasProperty'))
-            sub_concept_dict = {
-                'mr:hasFormat': '%s' % requestor[key]['mr:hasFormat'],
-                'mr:hasProperty':pr_ids}
-            qstr, instr = metarelate.Component.sparql_creator(sub_concept_dict)
+            mrprops = _prop_id(mem.get('mr:hasProperty'))
+            # pr_ids, newm['mr:hasProperty'] = _prop_id(mem.get('mr:hasProperty'))
+            # sub_concept_dict = {
+            #     'mr:hasFormat': '%s' % requestor[key]['mr:hasFormat'],
+            #     'mr:hasProperty':pr_ids}
+            # qstr, instr = metarelate.Component.sparql_creator(sub_concept_dict)
+            mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
+                                        metarelate.PropertyComponent(None, mrprops))
+            qstr, instr = mrcomp.creation_sparql()
             sub_comp = fuseki_process.create(qstr, instr)
-            subc_ids.append('%s' % sub_comp['component'])
+            mrcomp.uri = metarelate.Item(sub_comp['component'])
+            # subc_ids.append('%s' % sub_comp['component'])
             newm['component'] = '%s' % sub_comp['component']
-    comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
-                                'mr:hasComponent':subc_ids}
-    qstr, instr = metarelate.Component.sparql_creator(comp_dict)
+            mrcomponent = metarelate.PropertyComponent(sub_comp['component'], mrprops) 
+            mrcomps.append(mrcomponent)
+    # comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
+    #                             'mr:hasComponent':subc_ids}
+    # qstr, instr = metarelate.Component.sparql_creator(comp_dict)
+    mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
+                                mrcomps)
+    qstr, instr = mrcomp.creation_sparql()
     comp = fuseki_process.create(qstr, instr)
     if comp:
         components[key] = comp['component']
@@ -199,21 +226,32 @@ def _create_properties(key, requestor, new_map, components):
     
     """
     props = requestor[key]['mr:hasProperty']
-    prop_ids, new_map[key]['mr:hasProperty'] = _prop_id(props)
-    comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
-                                'mr:hasProperty':prop_ids}
+    # prop_ids, new_map[key]['mr:hasProperty'] = _prop_id(props)
+    mrprops = _prop_id(props)
+    # comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
+    #                             'mr:hasProperty':prop_ids}
+    # if requestor[key].get('dc:mediator'):
+    #     comp_dict['dc:mediator'] = requestor[key]['dc:mediator']
+    # if requestor[key].get('dc:requires'):
+    #     comp_dict['dc:requires'] = requestor[key]['dc:requires']
+    mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
+                                metarelate.PropertyComponent(None, mrprops))
     if requestor[key].get('dc:mediator'):
-        comp_dict['dc:mediator'] = requestor[key]['dc:mediator']
+        mrcomp.mediator = requestor[key]['dc:mediator']
     if requestor[key].get('dc:requires'):
-        comp_dict['dc:requires'] = requestor[key]['dc:requires']
-    qstr, instr = metarelate.Component.sparql_creator(comp_dict)
+        ## nb many requires required one day
+        mrcomp.requires = requestor[key]['dc:requires']
+    qstr, instr = mrcomp.creation_sparql()
+    # qstr, instr = metarelate.Component.sparql_creator(comp_dict)
     comp = fuseki_process.create(qstr, instr)
     if comp:
         components[key] = comp['component']
+        mrcomp.uri = metarelate.Item(comp['component'])
     else:
         ec = 'get_component get did not return 1 id {}'.format(concept)
         raise ValueError(ec)
     return new_map, components
+    # return new_map, mrcomp.uri.data
 
 def _component_links(key, request, amended):
     """
