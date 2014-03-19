@@ -50,9 +50,6 @@ class _ComponentMixin(object):
     def __getattr__(self, name):
         return self.__getitem__(name)
 
-    # def __setattr__(self, name, value):
-    #     self._immutable_exception()
-
     def __iter__(self):
         return iter(self._data)
 
@@ -93,13 +90,12 @@ class _DotMixin(object):
         return label
 
 
-class Mapping(_DotMixin):#, namedtuple('Mapping', 'uri source target')):
+class Mapping(_DotMixin):
     """
     Represents an mapping relationship between a source
     :class:`Concept` and a target :class:`Concept`.
 
     """
-    #def __new__(cls, uri, source, target):
     def __init__(self, uri, source, target, invertible=False,
                  editor=None, note=None, reason=None, replaces=None, 
                  valuemaps=None, owners=None, watchers=None, status=None):
@@ -124,7 +120,6 @@ class Mapping(_DotMixin):#, namedtuple('Mapping', 'uri source target')):
             msg = 'Expected target {!r} object, got {!r}.'
             raise TypeError(msg.format(list.__name__,
                                        type(watchers).__name__))
-        #return super(Mapping, cls).__new__(cls, uri, source, target)
         self.uri = uri
         self.source = source
         self.target = target
@@ -874,7 +869,6 @@ class PropertyComponent(_ComponentMixin, _DotMixin, MutableMapping):
         return referrer
 
 
-# class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
 class Property(_DotMixin):
     """
     Represents a named tuple property participating in a :class:`Mapping`
@@ -895,7 +889,6 @@ class Property(_DotMixin):
        :class:`PropertyComponent`.
 
     """
-    # def __new__(cls, uri, name, value=None, operator=None):
     def __init__(self, uri, name, value=None, operator=None, component=None):
         new_uri = Item(uri)
         new_name = Item(name)
@@ -924,8 +917,6 @@ class Property(_DotMixin):
         self.operator = new_operator
         self.value = new_value
         self.component = new_comp
-        # return super(Property, cls).__new__(cls, new_uri, new_name,
-        #                                     new_value, new_operator)
 
     def __eq__(self, other):
         result = NotImplemented
@@ -943,10 +934,6 @@ class Property(_DotMixin):
         if result is not NotImplemented:
             result = not result
         return result
-
-    # def __setattr__(self, name, value):
-    #     msg = '{!r} instance is immutable.'
-    #     raise TypeError(msg.format(type(self).__name__))
 
     def __repr__(self):
         fmt = '{cls}(uri={self.uri!r}, name={self.name!r}{value}{operator})'

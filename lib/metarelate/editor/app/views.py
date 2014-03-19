@@ -136,28 +136,15 @@ def _prop_id(members, fformat=None):
                     mrprop = metarelate.Property(None, prop['mr:name'],
                                                  prop['rdf:value'], 
                                                  prop['mr:operator'])
-                    # qstr, instr = mrprop.creation_sparql()
-                    # prop_res = fuseki_process.create(qstr, instr)
-                    # # mrprop = metarelate.Property(prop_res['property'])
-                    # mrprop.uri = metarelate.Item(prop_res['property'])
                     mrprop.create_rdf(fuseki_process)
                     subprops.append(mrprop)
-                    # cpid = '{}'.format(prop_res['property'], prop['mr:name'],
-                    #                              prop['rdf:value'], 
-                    #                              prop['mr:operator'])
-                    # props[i] = cpid
-                    # new_props[i]['component'] = cpid
             else:
                 #validation error please
                 raise ValueError('If a property has a component that component'
                                  'must itself reference properties')
-            # mrcomp = metarelate.Component(None)
             mrcomp = metarelate.Concept(None, fformat, 
                                         metarelate.PropertyComponent(None, subprops))
             mrcomp.create_rdf(fuseki_process)
-            # qstr, instr = metarelate.Component.sparql_creator(comp_mem)
-            # cres = fuseki_process.create(qstr, instr)
-            # mem['mr:hasComponent'] = cres['component']
             new_mem['mr:hasComponent']['component'] = mrcomp.uri.data
         # remove old property id
         mem.pop('property', None)
@@ -171,19 +158,9 @@ def _prop_id(members, fformat=None):
         else:
             mrprop = metarelate.Property(None, mem['mr:name'])
         mrprop.create_rdf(fuseki_process)
-        # qstr, instr = mrprop.creation_sparql()
-        # #qstr, instr = metarelate.Property.sparql_creator(mem)
-        # res = fuseki_process.create(qstr, instr)
-        # mrprop.uri = metarelate.Item(res['property'])
-        # mrprop = metarelate.Property(res['property'], mem['mr:name'],
-        #                              mem['rdf:value'], 
-        #                              mem['mr:operator'])
-        # pid = res['property']
         new_mem['property'] = mrprop.uri.data
-        # prop_ids.append(pid)
         mrprops.append(mrprop)
-    # return prop_ids, new_map
-    return mrprops#, new_map
+    return mrprops
 
 
 def url_qstr(path, **kwargs):
@@ -201,61 +178,31 @@ def _create_components(key, requestor, new_map):#, components):
     relevant component records in the triple store
 
     """
-    # subc_ids = []
     mrcomps = []
     for i, (mem, newm) in enumerate(zip(requestor[key]['mr:hasComponent'],
                                   new_map[key]['mr:hasComponent'])):
         if mem.get('mr:hasProperty'):
-            # mrprops, newm['mr:hasProperty'] = _prop_id(mem.get('mr:hasProperty'))
             mrprops = _prop_id(mem.get('mr:hasProperty'),
                                requestor[key].get('mr:hasFormat'))
-            # pr_ids, newm['mr:hasProperty'] = _prop_id(mem.get('mr:hasProperty'))
-            # sub_concept_dict = {
-            #     'mr:hasFormat': '%s' % requestor[key]['mr:hasFormat'],
-            #     'mr:hasProperty':pr_ids}
-            # qstr, instr = metarelate.Component.sparql_creator(sub_concept_dict)
             mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
                                         metarelate.PropertyComponent(None, mrprops))
             mrcomp.create_rdf(fuseki_process)
-            # qstr, instr = mrcomp.creation_sparql()
-            # sub_comp = fuseki_process.create(qstr, instr)
-            # mrcomp.uri = metarelate.Item(sub_comp['component'])
-            # # subc_ids.append('%s' % sub_comp['component'])
-            # newm['component'] = '%s' % sub_comp['component']
-            # mrcomponent = metarelate.PropertyComponent(sub_comp['component'], mrprops) 
-            # mrcomps.append(mrcomponent)
             mrcomps.append(mrcomp)
-    # comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
-    #                             'mr:hasComponent':subc_ids}
-    # qstr, instr = metarelate.Component.sparql_creator(comp_dict)
     mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
                                 mrcomps)
-    # qstr, instr = mrcomp.creation_sparql()
-    # comp = fuseki_process.create(qstr, instr)
-    # if comp:
-    #     components[key] = comp['component']
-    # else:
-    #     ec = 'get_component get did not return 1 id {}'.format(concept)
-    #     raise ValueError(ec)
+
     mrcomp.create_rdf(fuseki_process)
     new_map[key]['component'] = mrcomp.uri.data
-    return new_map#, components
+    return new_map
 
-def _create_properties(key, requestor, new_map):#, components):
+def _create_properties(key, requestor, new_map):
     """
     return the mapping json structure and components list having created
     relevant property records in the triple store
     
     """
     props = requestor[key]['mr:hasProperty']
-    # prop_ids, new_map[key]['mr:hasProperty'] = _prop_id(props)
     mrprops = _prop_id(props)
-    # comp_dict = {'mr:hasFormat':'%s' % requestor[key]['mr:hasFormat'],
-    #                             'mr:hasProperty':prop_ids}
-    # if requestor[key].get('dc:mediator'):
-    #     comp_dict['dc:mediator'] = requestor[key]['dc:mediator']
-    # if requestor[key].get('dc:requires'):
-    #     comp_dict['dc:requires'] = requestor[key]['dc:requires']
     mrcomp = metarelate.Concept(None, requestor[key]['mr:hasFormat'],
                                 metarelate.PropertyComponent(None, mrprops))
     if requestor[key].get('dc:mediator'):
@@ -263,20 +210,9 @@ def _create_properties(key, requestor, new_map):#, components):
     if requestor[key].get('dc:requires'):
         ## nb many requires required one day
         mrcomp.requires = requestor[key]['dc:requires']
-    # qstr, instr = mrcomp.creation_sparql()
-    # # qstr, instr = metarelate.Component.sparql_creator(comp_dict)
-    # comp = fuseki_process.create(qstr, instr)
-    # if comp:
-    #     components[key] = comp['component']
-    #     mrcomp.uri = metarelate.Item(comp['component'])
-    # else:
-    #     ec = 'get_component get did not return 1 id {}'.format(concept)
-    #     raise ValueError(ec)
     mrcomp.create_rdf(fuseki_process)
-    # components[key] = mrcomp.uri.data
     new_map[key]['component'] = mrcomp.uri.data
     return new_map
-    # return new_map, mrcomp.uri.data
 
 def _component_links(key, request, amended):
     """
@@ -604,7 +540,6 @@ def mapping_concepts(request):
         ## get the formatConcepts for source and target
         ## pass to value map definition
         form = forms.MappingConcept(request.POST)
-        #components = {}
         new_map = copy.deepcopy(requestor)
         for key in ['mr:source','mr:target']:
             if requestor[key].get('mr:hasProperty'):
@@ -612,10 +547,7 @@ def mapping_concepts(request):
             elif requestor[key].get('mr:hasComponent'):
                 new_map = _create_components(key, requestor, new_map)
         for key in ['mr:source','mr:target']:
-            # if components.has_key(key):
-            #     new_map[key]['component'] = '%s' % components[key]
             if not new_map[key].has_key('component'):
-            # else:
                 raise ValueError('The source and target are not both defined')
         ref = json.dumps(new_map)
         url = url_qstr(reverse('value_maps'),ref=ref)
@@ -976,8 +908,6 @@ def mapping_edit(request):
     if request.method == 'POST':
         form = forms.MappingMeta(request.POST)
         if form.is_valid():
-            # map_id = process_form(form, requestor_path)
-
             data = form.cleaned_data
             source = fuseki_process._retrieve_component(data['source'])
             target = fuseki_process._retrieve_component(data['target'])
@@ -990,7 +920,7 @@ def mapping_edit(request):
             if data['mapping'] != "":
                 amap.replaces = data['mapping']
             if data['comment'] != '':
-                amap.note = ['"%s"' % data['comment']]
+                amap.note = data['comment']
             if data.get('valueMaps'):
                 amap.valuemaps = ['%s' % vm for vm in
                                           data['valueMaps'].split('&')]
@@ -1000,11 +930,8 @@ def mapping_edit(request):
             # if data.get('watchers'):
             #     amap.watchers = ['%s' % vm for vm in
             #                               data['watchers'].split('&')]
-
             
             amap.create_rdf(fuseki_process)
-            
-            # requestor['mapping'] = map_id
             requestor['mapping'] = amap.uri.data
             url = url_qstr(reverse('mapping_edit'),
                                        ref=json.dumps(requestor))
@@ -1064,51 +991,6 @@ def mapping_edit(request):
                         'label': 'Re-define this Mapping'}
     context = RequestContext(request, con_dict)
     return render_to_response('mapping_concept.html', context)
-
-
-
-def process_form(form, requestor_path):
-    """
-    process the submitted form
-    pass the data to the fuseki server to input into the triplestore
-    
-    """
-    globalDateTime = datetime.datetime.now().isoformat()
-    data = form.cleaned_data
-    mapping_p_o = collections.defaultdict(list)
-    ## take the new values from the form and add all of the initial values
-    ## not included in the 'remove' field
-    ## to be reimplemented
-    # for label in ['owner','watcher']:
-    #     if data['add_%ss' % label] != '':
-    #         for val in data['add_%ss' % label].split(','):
-    #             mapping_p_o['mr:%s' % label].append('"%s"' % val)
-    #     if data['%ss' % label] != '':
-    #         for val in data['%ss' % label].split(','):
-    #             if val not in data['remove_%ss' % label].split(',') and\
-    #                 val not in mapping_p_o['mr:%s' % label].split(','):
-    #                 mapping_p_o['mr:%s' % label].append('"%s"' % val)
-    mapping_p_o['dc:creator'] = ['%s' % data['editor']]
-    mapping_p_o['dc:date'] = ['"%s"^^xsd:dateTime' % globalDateTime]
-    mapping_p_o['mr:status'] = ['%s' % data['next_status']]
-    if data['mapping'] != "":
-        mapping_p_o['dc:replaces'] = ['%s' % data['mapping']]
-    if data['comment'] != '':
-        mapping_p_o['skos:note'] = ['"%s"' % data['comment']]
-    mapping_p_o['mr:reason'] = ['%s' % data['next_reason']]
-    mapping_p_o['mr:source'] = ['%s' % data['source']]
-    mapping_p_o['mr:target'] = ['%s' % data['target']]
-    mapping_p_o['mr:invertible'] = ['%s' % data['invertible']]
-    if data.get('valueMaps'):
-        mapping_p_o['mr:hasValueMap'] = ['%s' % vm for vm in
-                                  data['valueMaps'].split('&')]
-
-    mapping = mapping_p_o
-    qstr, instr = metarelate.Mapping.sparql_creator(mapping_p_o)
-    mapping = fuseki_process.create(qstr, instr)
-    map_id = mapping['mapping']
-
-    return map_id
 
 
 def invalid_mappings(request):
