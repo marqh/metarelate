@@ -68,6 +68,12 @@ def home(request):
                 print_string += '%s %s\n' (k, v)
             print_string += '\n'
     cache_state = print_string
+    #find cached mappings
+    edited_mappings = set()
+    for r in persist:
+        map_str = '<http://www.metarelate.net/metOcean/mapping/'
+        if r.has_key('s') and r['s'].startswith(map_str):
+            edited_mappings.add(r['s'])
     if request.method == 'POST':
         form = forms.HomeForm(request.POST)
         if form.is_valid():
@@ -83,7 +89,8 @@ def home(request):
     else:
         form = forms.HomeForm(initial={'cache_status':cache_status,
                                        'cache_state':cache_state})
-        con_dict = {}
+        # con_dict = {}
+        con_dict = _process_mapping_list(edited_mappings, 'cached mapping edits')
         searchurl = url_qstr(reverse('fsearch'),ref='')
         con_dict['search'] = {'url':searchurl, 'label':'search for mappings'}
         createurl = reverse('mapping_formats')
