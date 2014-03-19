@@ -639,10 +639,21 @@ class Concept(Component):
 
     def creation_sparql(self):
         """
-        return SPARQL string for creation of a Property
+        return SPARQL string for creation of a Concept
 
         """
         return self.sparql_creator(self._podict())
+
+    def create_rdf(self, fuseki_process):
+        """
+        create rdf representation using the provided fuseki process
+
+        """
+        qstr, instr = self.creation_sparql()
+        result = fuseki_process.create(qstr, instr)
+        self.uri = Item(result['component'])
+        if len(self) == 1 and isinstance(self.components[0], PropertyComponent):
+            self.components[0].uri = Item(self.uri)
 
 
 
@@ -784,7 +795,8 @@ class PropertyComponent(_ComponentMixin, _DotMixin, MutableMapping):
         return referrer
 
 
-class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
+# class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
+class Property(_DotMixin):
     """
     Represents a named tuple property participating in a :class:`Mapping`
     relationship.
@@ -804,7 +816,8 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
        :class:`PropertyComponent`.
 
     """
-    def __new__(cls, uri, name, value=None, operator=None):
+    # def __new__(cls, uri, name, value=None, operator=None):
+    def __init__(self, uri, name, value=None, operator=None, component=None):
         new_uri = Item(uri)
         new_name = Item(name)
         if (value is None and operator is not None) or \
@@ -813,6 +826,7 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
             raise ValueError(msg.format('value', 'operator', cls.__name__))
         new_value = None
         new_operator = None
+        new_comp = None
         if value is not None:
             if isinstance(value, (Item, basestring)):
                 new_value = Item(value)
@@ -824,8 +838,15 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
                                            type(value).__name__))
         if operator is not None:
             new_operator = Item(operator)
-        return super(Property, cls).__new__(cls, new_uri, new_name,
-                                            new_value, new_operator)
+        if component is not None:
+            new_comp = Item(component)
+        self.uri = new_uri
+        self.name = new_name
+        self.operator = new_operator
+        self.value = new_value
+        self.component = new_comp
+        # return super(Property, cls).__new__(cls, new_uri, new_name,
+        #                                     new_value, new_operator)
 
     def __eq__(self, other):
         result = NotImplemented
@@ -893,6 +914,15 @@ class Property(_DotMixin, namedtuple('Property', 'uri name value operator')):
 
         """
         return self.sparql_creator(self._podict())
+
+    def create_rdf(self, fuseki_process):
+        """
+        create the rdf representation using the provided fuseki process
+
+        """
+        qstr, instr = self.creation_sparql()
+        result = fuseki_process.create(qstr, instr)
+        self.uri = Item(result['property'])
 
     def dot(self, graph, parent, name=None):
         """
