@@ -16,6 +16,7 @@
 # along with metarelate. If not, see <http://www.gnu.org/licenses/>.
 
 from collections import Iterable, MutableMapping, namedtuple
+from datetime import datetime
 import hashlib
 import os
 from urlparse import urlparse
@@ -92,13 +93,16 @@ class _DotMixin(object):
         return label
 
 
-class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
+class Mapping(_DotMixin):#, namedtuple('Mapping', 'uri source target')):
     """
-    Represents an immutable mapping relationship between a source
+    Represents an mapping relationship between a source
     :class:`Concept` and a target :class:`Concept`.
 
     """
-    def __new__(cls, uri, source, target):
+    #def __new__(cls, uri, source, target):
+    def __init__(self, uri, source, target, invertible=False,
+                 editor=None, note=None, reason=None, replaces=None, 
+                 valuemaps=None, owners=None, watchers=None, status=None):
         uri = Item(uri)
         if not isinstance(source, Concept):
             msg = 'Expected source {!r} object, got {!r}.'
@@ -108,13 +112,36 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
             msg = 'Expected target {!r} object, got {!r}.'
             raise TypeError(msg.format(Concept.__name__,
                                        type(target).__name__))
-        return super(Mapping, cls).__new__(cls, uri, source, target)
+        if owners and not isinstance(owners, list):
+            msg = 'Expected target {!r} object, got {!r}.'
+            raise TypeError(msg.format(list.__name__,
+                                       type(owners).__name__))
+        if valuemaps and not isinstance(valuemaps, list):
+            msg = 'Expected target {!r} object, got {!r}.'
+            raise TypeError(msg.format(list.__name__,
+                                       type(valuemaps).__name__))
+        if watchers and not isinstance(watchers, list):
+            msg = 'Expected target {!r} object, got {!r}.'
+            raise TypeError(msg.format(list.__name__,
+                                       type(watchers).__name__))
+        #return super(Mapping, cls).__new__(cls, uri, source, target)
+        self.uri = uri
+        self.source = source
+        self.target = target
+        self.invertible = invertible
+        self.editor = editor
+        self.note = note
+        self.reason = reason
+        self.replaces = replaces
+        self.valuemaps = valuemaps
+        self.owners = owners
+        self.watchers = watchers
+        self.status = status
 
     def __eq__(self, other):
         result = NotImplemented
         if isinstance(other, Mapping):
-            result = self.uri == other.uri and \
-                self.source == other.source and \
+            result = self.source == other.source and \
                 self.target == other.target
         return result
 
@@ -164,6 +191,57 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
         graph.add_subgraph(tgraph)
         return graph
 
+    def _check_status(self):
+        status = False
+        allowed = ['"Draft"', '"Proposed"', '"Approved"',
+                   '"Broken"', '"Deprecated"']
+        if self.status:
+            if self.status not in allowed:
+                msg = ('{} is not an allowed value'.format(self.status),
+                       ' for status please use one of {}'.format(allowed))
+                raise ValueError(msg)
+            status = True
+        return status
+
+    def _podict(self):
+        """
+        Return a dictionary of predicates and objects for a rdf representation
+
+        """
+        podict = {}
+        podict['mr:source'] = self.source.uri.data
+        podict['mr:target']  = self.target.uri.data
+        podict['mr:invertible'] = self.invertible
+        podict['dc:date'] = ['"{}"^^xsd:dateTime'.format(datetime.now().isoformat())]
+        podict['dc:creator'] = self.editor
+        if self.replaces:
+            podict['dc:replaces'] = self.replaces
+        if self.valuemaps:
+            podict['mr:hasValueMap'] = [vmap.uri.data for vmap in self.valuemaps]
+        if self._check_status():
+            podict['mr:status'] = self.status
+        if self.note:
+            podict['skos:note'] = self.note
+        if self.reason:
+            podict['mr:reason'] = self.reason
+        # if self.owners:
+        #     podict['mr:owner'] = [owner for owner in self.owners]
+        # if self.watchers:
+        #     podict['mr:watcher'] = self.watchers
+        return podict
+
+
+
+    def create_rdf(self, fuseki_process):
+        """
+        create the rdf representation using the provided fuseki process
+
+        """
+        qstr, instr = self.sparql_creator(self._podict())
+        result = fuseki_process.create(qstr, instr)
+        self.uri = Item(result['mapping'])
+
+
     def json_referrer(self):
         """
         return the data contents of the mapping instance ready for encoding
@@ -173,6 +251,7 @@ class Mapping(_DotMixin, namedtuple('Mapping', 'uri source target')):
         referrer = {'mapping': self.uri.data, 'mr:hasValueMap': []}
         referrer['mr:source'] = self.source.json_referrer()
         referrer['mr:target'] = self.target.json_referrer()
+        ## what about other attributes?? not implemented yet
         return referrer
 
     @staticmethod

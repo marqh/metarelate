@@ -976,8 +976,36 @@ def mapping_edit(request):
     if request.method == 'POST':
         form = forms.MappingMeta(request.POST)
         if form.is_valid():
-            map_id = process_form(form, requestor_path)
-            requestor['mapping'] = map_id
+            # map_id = process_form(form, requestor_path)
+
+            data = form.cleaned_data
+            source = fuseki_process._retrieve_component(data['source'])
+            target = fuseki_process._retrieve_component(data['target'])
+            
+            amap = metarelate.Mapping(None,  source, target, 
+                                      invertible=data['invertible'],
+                                      editor=data['editor'],
+                                      reason=data['next_reason'],
+                                      status=data['next_status'])
+            if data['mapping'] != "":
+                amap.replaces = data['mapping']
+            if data['comment'] != '':
+                amap.note = ['"%s"' % data['comment']]
+            if data.get('valueMaps'):
+                amap.valuemaps = ['%s' % vm for vm in
+                                          data['valueMaps'].split('&')]
+            # if data.get('owners'):
+            #     amap.owners = ['%s' % vm for vm in
+            #                               data['owners'].split('&')]
+            # if data.get('watchers'):
+            #     amap.watchers = ['%s' % vm for vm in
+            #                               data['watchers'].split('&')]
+
+            
+            amap.create_rdf(fuseki_process)
+            
+            # requestor['mapping'] = map_id
+            requestor['mapping'] = amap.uri.data
             url = url_qstr(reverse('mapping_edit'),
                                        ref=json.dumps(requestor))
             return HttpResponseRedirect(url)
