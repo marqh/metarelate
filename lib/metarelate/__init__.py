@@ -894,8 +894,8 @@ class Property(_DotMixin):
         new_name = Item(name)
         if (value is None and operator is not None) or \
                 (value is not None and operator is None):
-            msg = 'The {!r} and {!r} of a {!r} must be both set or unset.'
-            raise ValueError(msg.format('value', 'operator', cls.__name__))
+            msg = 'The {!r} and {!r} of a Property must be both set or unset.'
+            raise ValueError(msg.format('value', 'operator'))
         new_value = None
         new_operator = None
         new_comp = None
