@@ -805,7 +805,7 @@ class ValidMappingState(object):
             self.entry_msg += 'ValidMappingState.'
             self.entry_msg.format(cache_len)
         else:
-            self.stash_delete_invalid()
+            self._stash_delete_invalid()
             self.valid_state = True
             self.entry_msg = 'Working with valid mappings only'
         return self
@@ -813,12 +813,12 @@ class ValidMappingState(object):
     def __exit__(self, *args):
         self.exit_msg = ''
         if self.valid_state:
-            self.retrieve_stash()
+            self._retrieve_stash()
             self.exit_msg = 'TDB re-synchronised with static data'
         else:
             self.exit_msg = 'TDB untouched'
 
-    def stash_delete_invalid(self):
+    def _stash_delete_invalid(self):
         """
         remove all mapping which have been replaced or have do not
         have a status of 'draft, proposed or approved' from the TDB.
@@ -880,7 +880,7 @@ class ValidMappingState(object):
         '''
         delete_results = self.fuseki_process.run_query(instr, update=True)
 
-    def retrieve_stash(self):
+    def _retrieve_stash(self):
         """
         retrieve the stashed context invalid mappings
         update the local TDB
@@ -893,7 +893,6 @@ class ValidMappingState(object):
                     '--graph=http://metarelate.net/mappings.ttl',
                     '--loc={}'.format(self.fuseki_process._tdb_dir),
                     self._tempfile]
-        print ' '.join(tdb_load)
         subprocess.check_call(tdb_load)
         os.remove(self._tempfile)
         self.fuseki_process.start()
@@ -902,6 +901,12 @@ class ValidMappingState(object):
         """
         return the format specific mappings for a particular source
         and target format
+
+        Args:
+
+            * source - the source format for the mappings
+
+            * target - the target format for the mappings
 
         """
         prefix = '<http://www.metarelate.net/{}/format'

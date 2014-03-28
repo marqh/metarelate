@@ -33,7 +33,7 @@ class TestFuseki(tests.MetarelateTestCase):
     @classmethod
     def setUpClass(cls):
         cls.fuseki = FusekiServer(test=True)
-        cls.fuseki.load()
+        #cls.fuseki.load()
         cls.fuseki.start()
 
     @classmethod
