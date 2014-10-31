@@ -881,11 +881,13 @@ def define_property(request, fformat):
         response = render_to_response('simpleform.html', context)
     return response
 
-def mapping_view_graph(request):
+def mapping_view_graph(request, mapping_id):
     """"""
-    requestor_path = request.GET.get('ref', '')
-    requestor_path = urllib.unquote(requestor_path).decode('utf8')
-    mapping = metarelate.Mapping(requestor_path)
+    #requestor_path = request.GET.get('ref', '')
+    #requestor_path = urllib.unquote(requestor_path).decode('utf8')
+    #mapping = metarelate.Mapping(requestor_path)
+    maproot = '<http://www.metarelate.net/metOcean/mapping/{}>'
+    mapping = metarelate.Mapping(maproot.format(mapping_id))
     mapping.populate_from_uri(fuseki_process)
     response = HttpResponse(mimetype="image/png")
     graph = mapping.dot()
@@ -898,7 +900,8 @@ def mapping_view(request):
     requestor_path = urllib.unquote(requestor_path).decode('utf8')
     mapping = metarelate.Mapping(requestor_path)
     mapping.populate_from_uri(fuseki_process)
-    con_dict = {'mapping':mapping}
+    shaid = requestor_path.split('/')[-1].rstrip('>')
+    con_dict = {'mapping':mapping, 'shaid':shaid}
     context = RequestContext(request, con_dict)
     response = render_to_response('viewmapping.html', context)
     return response

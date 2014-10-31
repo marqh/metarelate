@@ -293,7 +293,7 @@ class Mapping(_DotMixin):
                                labelloc='b',
                                style='filled', color='lightgrey')
         snode = self.source.dot(sgraph, node)
-        edge = pydot.Edge(node, snode,
+        edge = pydot.Edge(node, snode, dir='back',
                           label='Concept', fontsize=7,
                           tailport='s', headport='n')
         graph.add_edge(edge)
@@ -307,6 +307,15 @@ class Mapping(_DotMixin):
                           tailport='s', headport='n')
         graph.add_edge(edge)
         graph.add_subgraph(tgraph)
+        if self.invertible == '"True"':
+            edge = pydot.Edge(node, snode,
+                              label='Concept', fontsize=7,
+                              tailport='s', headport='n')
+            graph.add_edge(edge)
+            edge = pydot.Edge(node, tnode, dir="back",
+                              label='Concept', fontsize=7,
+                              tailport='s', headport='n')
+            graph.add_edge(edge)
         return graph
 
     def _podict(self):
@@ -638,12 +647,9 @@ class Component(_DotMixin):
                           fontsize=8)
         node.uri = self.dot_escape(self.uri.data)
         graph.add_node(node)
-        edge = pydot.Edge(parent, node,
-                          tailport='s', headport='n')
         if name is not None:
             edge.set_label(self.dot_escape(name))
             edge.set_fontsize(7)
-        graph.add_edge(edge)
         for property in self.properties:
             property.dot(graph, node)
         return node
