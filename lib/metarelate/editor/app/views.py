@@ -881,8 +881,30 @@ def define_property(request, fformat):
         response = render_to_response('simpleform.html', context)
     return response
 
+def mapping_view_graph(request):
+    """"""
+    requestor_path = request.GET.get('ref', '')
+    requestor_path = urllib.unquote(requestor_path).decode('utf8')
+    mapping = metarelate.Mapping(requestor_path)
+    mapping.populate_from_uri(fuseki_process)
+    response = HttpResponse(mimetype="image/png")
+    graph = mapping.dot()
+    response.write(graph.create_png())
+    return response
 
-    
+def mapping_view(request):
+    """"""
+    requestor_path = request.GET.get('ref', '')
+    requestor_path = urllib.unquote(requestor_path).decode('utf8')
+    mapping = metarelate.Mapping(requestor_path)
+    mapping.populate_from_uri(fuseki_process)
+    con_dict = {'mapping':mapping}
+    context = RequestContext(request, con_dict)
+    response = render_to_response('viewmapping.html', context)
+    return response
+
+
+
 def mapping_edit(request):
     """
     returns a view to provide editing to the mapping record defining a
@@ -999,12 +1021,15 @@ def invalid_mappings(request):
     for key, inv_mappings in requestor.iteritems():
         invalid = {'label':key, 'mappings':[]}
         for inv_map in inv_mappings:
-            qstr = metarelate.Mapping.sparql_retriever(inv_map['amap'])
-            mapping = fuseki_process.retrieve(qstr)
-            referrer = fuseki_process.structured_mapping(mapping)
-            referrer = referrer.json_referrer()
-            map_json = json.dumps(referrer)
-            url = url_qstr(reverse('mapping_edit'), ref=map_json)
+            muri = inv_map['amap']
+            mapping = metarelate.Mapping(muri)
+            mapping.populate_from_uri(fuseki_process)
+            # qstr = metarelate.Mapping.sparql_retriever(inv_map['amap'])
+            # mapping = fuseki_process.retrieve(qstr)
+            # referrer = fuseki_process.structured_mapping(mapping)
+            # referrer = referrer.json_referrer()
+            # map_json = json.dumps(referrer)
+            url = url_qstr(reverse('mapping_view'), ref=muri)
             sig = inv_map.get('signature', [])
             label = []
             if isinstance(sig, list):

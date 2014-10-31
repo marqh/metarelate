@@ -34,5 +34,7 @@ urlpatterns = patterns('',
     url(r'^derivedvalue/(?P<role>[^/]+)/$', 'metarelate.editor.app.views.derived_value', 
         name='derived_value'),
     url(r'^mappingedit/$', 'metarelate.editor.app.views.mapping_edit', name='mapping_edit'),
-    url(r'^add_contact/$', 'metarelate.editor.app.views.add_contact', name='add_contact')
+    url(r'^add_contact/$', 'metarelate.editor.app.views.add_contact', name='add_contact'),
+    url(r'^mappingview/$', 'metarelate.editor.app.views.mapping_view', name='mapping_view'),
+    url(r'^mappingviewgraph/$', 'metarelate.editor.app.views.mapping_view_graph', name='mapping_view_graph'),
 )

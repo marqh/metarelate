@@ -429,8 +429,8 @@ class FusekiServer(object):
         mm_string = ('The following mappings are ambiguous, providing multiple'
                     ' targets in the same format for a particular source')
         failures[mm_string] = self.run_query(multiple_mappings())
-        invalid_vocab = 'The following mappings contain an undeclared URI'
-        failures[invalid_vocab] = self.run_query(valid_vocab())
+        # invalid_vocab = 'The following mappings contain an undeclared URI'
+        # failures[invalid_vocab] = self.run_query(valid_vocab())
         return failures
 
     def run_query(self, query_string, output='json', update=False, debug=False):
@@ -726,34 +726,7 @@ def multiple_mappings(test_source=None):
     }
     filter (?btargetformat = ?atargetformat)
 
-    OPTIONAL { GRAPH <http://metarelate.net/formats.ttl> {
-    ?atargetformat <http://www.metarelate.net/vocabulary/index.html#subFormat> ?asubtargetpref .
-    ?btargetformat <http://www.metarelate.net/vocabulary/index.html#subFormat> ?bsubtargetpref .
-    } 
-    GRAPH <http://metarelate.net/concepts.ttl> {
-    ?atarget mr:hasProperty ?asubprop .
-    ?asubprop mr:name ?asubtargetpref ;
-          rdf:value ?asubswitch .
-    ?btarget mr:hasProperty ?bsubprop .
-    ?bsubprop mr:name ?bsubtargetpref ;
-          rdf:value ?bsubswitch .
-    } }
-    filter (?asubswitch = ?bsubswitch)
-
-    GRAPH <http://metarelate.net/concepts.ttl> { {
-    ?asource mr:hasProperty ?prop . }
-    UNION {
-    ?atarget mr:hasProperty ?prop . }
-    UNION {
-    ?asource mr:hasComponent|mr:hasProperty ?prop . }
-    UNION {
-    ?atarget mr:hasComponent|mr:hasProperty ?prop . }
-    UNION { 
-    ?asource mr:hasProperty|mr:hasComponent|mr:hasProperty ?prop . }
-    UNION { 
-    ?atarget mr:hasProperty|mr:hasComponent|mr:hasProperty ?prop . }
-    OPTIONAL { ?prop rdf:value ?value . }
-    } }
+    }
     GROUP BY ?amap ?asource ?atarget ?bmap ?bsource ?btarget
     ORDER BY ?asource
     ''' % tm_filter

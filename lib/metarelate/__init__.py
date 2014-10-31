@@ -631,12 +631,12 @@ class Component(_DotMixin):
 
         """
         label = self.dot_escape('{}_{}'.format(parent.uri, self.uri.data))
-        nlabel = self.com_type
+        nlabel = self.dot_escape(self.com_type.data)
         node = pydot.Node(label, label=nlabel,
                           style='filled', peripheries='2',
                           colorscheme='dark28', fillcolor='3',
                           fontsize=8)
-        node.uri = self.uri.data
+        node.uri = self.dot_escape(self.uri.data)
         graph.add_node(node)
         edge = pydot.Edge(parent, node,
                           tailport='s', headport='n')
