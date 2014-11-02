@@ -63,7 +63,21 @@ class MappingMetadata(forms.Form):
 
 
 
+class Search(forms.Form):
+    additive = forms.BooleanField()
+    def __init__(self, *args, **kwargs):
+        super(Search, self).__init__(*args, **kwargs)
+        self.statements = formset_factory(SearchStatement)
 
+class SearchStatement(forms.Form):
+    predicate = forms.CharField(required=False, 
+                                widget=forms.TextInput(attrs={'size':'100%'}))
+    rdfobject = forms.CharField(required=False, 
+                                widget=forms.TextInput(attrs={'size':'100%'}))
+
+
+#class SearchStatements(forms.Form):
+    
 
 
 

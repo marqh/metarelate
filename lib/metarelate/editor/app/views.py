@@ -1062,9 +1062,23 @@ def fsearch(request):
     context = RequestContext(request, urls)
     return render_to_response('main.html', context)
         
-    
+def search(request):
+    """to search"""
+    if request.method == 'POST':
+        form = forms.Search(request.POST)
+        #if form.is_valid():
+            #url = url_qstr(reverse(''))
+            #response = HttpResponseRedirect(url)
+    else:
+        form = forms.Search()
+    con_dict = {'form':form}
+    context = RequestContext(request, con_dict)
+    response = render_to_response('searchform.html', context)
+    return response
+        
+            
 
-def search(request, fformat):
+def oldsearch(request, fformat):
     """Select a set of parameters for a concept search"""
     itemlist = ['Search Parameters:']
     requestor_path = request.GET.get('ref', '')
