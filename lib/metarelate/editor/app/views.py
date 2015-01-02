@@ -46,6 +46,17 @@ from metarelate.editor.settings import READ_ONLY
 from metarelate.editor.settings import fuseki_process
 from metarelate.editor.settings import ROOTUSER
 
+def _get_branch(request):
+    branch_path = request.GET.get('branch', '')
+    branch = urllib.unquote(branch_path).decode('utf8')
+    if branch and not branch.endswith('/'):
+        branch = branch + '/'
+    #20-byte hash values only
+    asha = re.compile('^[a-f0-9]{40}/$')
+    if not asha.match(branch):
+        raise ValueError('invalid branch identifier')
+    return branch
+
 def home(request):
     context = RequestContext(request)
     response = render_to_response('home.html', context)
@@ -65,8 +76,7 @@ def controlpanel(request):
     and reporting on status
     
     """
-    branch_path = request.GET.get('branch', '')
-    branch = urllib.unquote(branch_path).decode('utf8')
+    branch = _get_branch(request)
     branch_mappings = []
     if branch:
         branch_mappings = fuseki_process.query_branch(branch)
@@ -114,6 +124,7 @@ def controlpanel(request):
         con_dict['control'] = {'control':'control'}
         con_dict['form'] = form
         con_dict['branch'] = branch
+        con_dict['upload'] = [url_qstr(reverse('upload'), branch=branch)
         context = RequestContext(request, con_dict)
         response = render_to_response('main.html', context)
     return response
@@ -154,10 +165,7 @@ def retrieve_mappings(request):
 
 def mapping_view_graph(request, mapping_id):
     """"""
-    branch_path = request.GET.get('branch', '')
-    branch = urllib.unquote(branch_path).decode('utf8')
-    if branch:
-        branch = branch + '/'
+    branch = _get_branch(request)
     mapping = metarelate.Mapping(None)
     mapping.shaid = mapping_id
     mapping.populate_from_uri(fuseki_process, graph=branch)
@@ -168,11 +176,7 @@ def mapping_view_graph(request, mapping_id):
 
 def mapping(request, mapping_id):
     """"""
-    branch_path = request.GET.get('branch', '')
-    branch = urllib.unquote(branch_path).decode('utf8')
-    branchurl = ''
-    if branch:
-        branchurl = branch + '/'
+    branch = _get_branch(request)
     mapping = metarelate.Mapping(None)
     mapping.shaid = mapping_id
     mapping.populate_from_uri(fuseki_process, graph=branchurl)
