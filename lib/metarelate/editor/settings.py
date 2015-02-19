@@ -130,7 +130,7 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': '/path/to/django/debug.log',
+            'filename': '/tmp/debug.log',
         },
     },
     'loggers': {
@@ -190,8 +190,8 @@ SOCIAL_AUTH_PIPELINE = (
 
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
 
-SOCIAL_AUTH_GITHUB_KEY = 
-SOCIAL_AUTH_GITHUB_SECRET =
+SOCIAL_AUTH_GITHUB_KEY = 1
+SOCIAL_AUTH_GITHUB_SECRET = 1
 
 try:
     from settings_local import *

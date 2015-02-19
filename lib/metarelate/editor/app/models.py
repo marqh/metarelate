@@ -19,5 +19,8 @@
 
 from django.contrib.auth.models import AbstractUser
 
+AbstractUser._meta.get_field('username').max_length = 64
+
 class CustomUser(AbstractUser):
     pass
+
