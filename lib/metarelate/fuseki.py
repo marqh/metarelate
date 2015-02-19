@@ -372,11 +372,10 @@ class FusekiServer(object):
         """
         map_ids = []
         if branch is not None:
-            map_qstr = ('SELECT ?mapping \n'
+            map_qstr = ('SELECT ?mapping ?replaces \n'
                         'WHERE { \n'
                         'GRAPH <http://metarelate.net/%smappings.ttl> { \n'
                         '?mapping rdf:type mr:Mapping .\n'
-                        # why this optional??
                         'OPTIONAL {?mapping dc:replaces ?replaces .}\n'
                         'MINUS {?mapping ^dc:replaces+ ?anothermap} \n'
                         '}}' % branch)

@@ -45,7 +45,9 @@ You are logged in as <code>{{ user.username }}</code>
           <i class="fa fa-sign-out"></i>
           Logout
         </a>
-
+<p>
+<a href="{% url 'control_panel' %}">Control Panel</a>
+<p>
 {% else %}
 
 <a href="{% url 'login' %}">login</a>

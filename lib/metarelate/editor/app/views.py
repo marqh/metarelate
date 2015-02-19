@@ -149,15 +149,17 @@ def controlpanel(request):
     logger.info('branch %s requested by control panel' % branch)
     if branch:
         branch_mappings = fuseki_process.query_branch(branch)
-        branch_mappings = [bm['mapping'].rstrip('>').lstrip('<') for bm in
-                           branch_mappings]
-        branch_mappings = [bm.split('http://www.metarelate.net/metOcean/mapping/')[-1]
+        branch_mappings = [(bm['mapping'].rstrip('>').lstrip('<'), bm.get('replaces', False)) 
                            for bm in
                            branch_mappings]
-        branch_mappings = [reverse(mapping, kwargs={'mapping_id':bm}) 
+        branch_mappings = [(bm[0].split('http://www.metarelate.net/metOcean/mapping/')[-1], 
+                            bm[1])
                            for bm in branch_mappings]
-        branch_mappings = [{'url':'{}?branch={}'.format(bm, branch),
-                            'label':bm} for bm in branch_mappings] 
+        branch_mappings = [(reverse(mapping, kwargs={'mapping_id':bm[0]}), bm[1]) 
+                           for bm in branch_mappings]
+        branch_mappings = [{'url':'{}?branch={}'.format(bm[0], branch),
+                            'label':bm[0], 'replaced':bm[1]} 
+                           for bm in branch_mappings] 
     open_ticket = _open_ticket(request, branch)
     if request.method == 'POST':# and request.user.username:
         form = forms.CPanelForm(request.POST)#, user=request.user.username)

@@ -149,7 +149,9 @@ Merge this branch:
 {% for mapping in mappings %}
 
     <ul>
-    <li><a href="{{ mapping.url }}">{{ mapping.label }}</a></li>
+    <li><a href="{{ mapping.url }}">{{ mapping.label }}</a>
+    {% if mapping.new %} *NEW* {% endif %}
+    </li>
     </ul>
 
 
