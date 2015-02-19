@@ -422,11 +422,14 @@ def list_mappings(request):
         requestor_path = '{}'
     requestor = json.loads(requestor_path)
     invalids = []
+    empty = True
     validated = True
     for key, inv_mappings in requestor.iteritems():
+        if key == 'search results':
+            validated = False
         invalid = {'label':key, 'mappings':[]}
         for inv_map in inv_mappings:
-            validated = False
+            empty = False
             muri = inv_map['amap']
             mapping = metarelate.Mapping(muri)
             url = reverse('mapping', kwargs={'mapping_id':mapping.shaid})
@@ -434,10 +437,10 @@ def list_mappings(request):
             invalid['mappings'].append({'url':url, 'label':label})
         invalids.append(invalid)
     context_dict = {'invalid': invalids}
-    if validated:
+    if empty and validated:
         context_dict['validated'] = ('This graph has successfully validated '
                                      'and is suitable for merging.')
-    else:
+    elif not empty and validated:
         context_dict['validated'] = ('This graph has not validated and should '
                                      'not be merged.  Details below:')
     context = RequestContext(request, context_dict)
