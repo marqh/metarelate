@@ -158,7 +158,7 @@ def controlpanel(request):
         branch_mappings = [(reverse(mapping, kwargs={'mapping_id':bm[0]}), bm[1]) 
                            for bm in branch_mappings]
         branch_mappings = [{'url':'{}?branch={}'.format(bm[0], branch),
-                            'label':bm[0], 'replaced':bm[1]} 
+                            'label':bm[0], 'new': not bm[1]} 
                            for bm in branch_mappings] 
     open_ticket = _open_ticket(request, branch)
     if request.method == 'POST':# and request.user.username:

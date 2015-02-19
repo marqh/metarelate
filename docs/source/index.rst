@@ -10,7 +10,7 @@ MetaRelate is a project aiming to deliver metadata interoperbility by relating m
 
 Its primary focus in the early stages of the project is working within the Meteorology and Oceanography domain.
 
-The Meteorology and Oceanography translation knowledge base is available: http://beta.metarelate.net/metOcean/
+The Meteorology and Oceanography translation knowledge base is available: http://www.metarelate.net/metOcean/
 
 Contents:
 

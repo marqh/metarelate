@@ -13,7 +13,7 @@ The API and editor is a Github repository, `MetaRelate <https://github.com/metar
 
 Translation knowledge is held in separate projects.  
 
-The Meteorology and Oceanography translation knowledge base is available: http://beta.metarelate.net/metOcean/
+The Meteorology and Oceanography translation knowledge base is available: http://www.metarelate.net/metOcean/
 
 The metarelate projects use Python, Django, Jena and Fuseki to provide the capabilities to manage a repository of translation information, an application programming interface and a user interface.
 
