@@ -534,8 +534,14 @@ class FusekiServer(object):
             raise ValueError('sourcetype and targettype must both be URIs')
 
         qstr = ('SELECT ?mapping ?source ?target ?invertible ?inverted '
-                '''(GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps) '''
-                'WHERE {  '
+                '''(GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps) \n'''
+                'WHERE {  \n'
+                #service
+                'SERVICE <http://www.metarelate.net/sparql/metOcean> {\n'
+                'SELECT ?mapping ?source ?target ?invertible ?inverted '
+                '''(GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps) \n'''
+                'WHERE {  \n'
+                #s
                 'GRAPH <http://metarelate.net/mappings.ttl> { { '
                 '?mapping mr:source ?source ; '
                 'mr:target ?target ; '
@@ -555,9 +561,13 @@ class FusekiServer(object):
                 'GRAPH <http://metarelate.net/concepts.ttl> { '
                 '?source rdf:type %s . '
                 '?target rdf:type %s . '
-                '}} '
+                '}} \n'
                 'GROUP BY ?mapping ?source ?target ?inverted ?invertible '
-                'ORDER BY ?mapping') % (sourcetype.data, targettype.data)
+                'ORDER BY ?mapping'
+                #service
+                '}}\n'
+                #s
+                '') % (sourcetype.data, targettype.data)
         map_templates = self.run_query(qstr)
         return json.dumps(map_templates)
 
@@ -569,7 +579,7 @@ class FusekiServer(object):
             targettype = metarelate.Item(targettype)
             query = {'source':sourcetype.data, 'target':targettype.data}
             ## check how to pass query params to request
-            templates = requests.get(kbase_uri, query)
+            templates = requests.get(kbase_uri, params=query)
         map_templates = json.loads(templates)
         mapping_list = deque()
         mapping_queue = Queue()

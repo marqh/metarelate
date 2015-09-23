@@ -515,11 +515,19 @@ class Mapping(_DotMixin):
                                '{}mappings.ttl>\n'.format(graph))
         qstr = ("SELECT ?mapping ?source ?target ?invertible ?replaces\n"
                 "       ?note ?date ?creator ?rights ?dateAccepted\n"
+                "       ?rightsHolders ?contibutors ?valueMaps \n"
+                #"%s"
+                "WHERE {\n"
+                #service
+                "SELECT ?mapping ?source ?target ?invertible ?replaces\n"
+                "       ?note ?date ?creator ?rights ?dateAccepted\n"
                 "(GROUP_CONCAT(DISTINCT(?rightsHolder); SEPARATOR = '&') AS ?rightsHolders)\n"
                 "(GROUP_CONCAT(DISTINCT(?contibutor); SEPARATOR = '&') AS ?contributors)\n"
                 "(GROUP_CONCAT(DISTINCT(?valueMap); SEPARATOR = '&') AS ?valueMaps)\n"
+                "SERVICE <http://www.metarelate.net/sparql/metOcean> {\n"
                 "%s"
-                "WHERE {\n"
+                "WHERE \n{"
+                #s
                 "?mapping mr:source ?source ;\n"
                 "     mr:target ?target ;\n"
                 "     mr:invertible ?invertible ;\n"
@@ -536,6 +544,9 @@ class Mapping(_DotMixin):
                 "%s\n}\n"
                 "GROUP BY ?mapping ?source ?target ?invertible ?replaces\n"
                 "         ?note ?date ?creator ?rights ?dateAccepted"
+                #service
+                "}}\n"
+                #s
                 " \n"% (graphs, self.uri.data, vstr))
         return qstr
 
@@ -778,7 +789,7 @@ class Component(_DotMixin):
         return result
 
     def populate_from_uri(self, fuseki_process, graph=None):
-        statements = fuseki_process.run_query(self.sparql_retriever(graph=graph))
+        statements = fuseki_process.run_query(self.sparql_retiever(graph=graph))
         for statement in statements:
             if statement.get('p') == '<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>':
                 self.com_type = Item(statement.get('o'),
@@ -809,6 +820,11 @@ class Component(_DotMixin):
             graphs = graphs + ('FROM NAMED <http://metarelate.net/'
                                '{}concepts.ttl>\n'.format(graph))
         qstr = ('SELECT ?component ?p ?o \n'
+                #service
+                'WHERE {\n'
+                'SERVICE <http://www.metarelate.net/sparql/metOcean> {'
+                'SELECT ?component ?p ?o \n'
+                #s
                 '%s'
                 'WHERE {\n'
                 'GRAPH ?g {\n'
@@ -816,6 +832,9 @@ class Component(_DotMixin):
                 'rdf:type mr:Component .\n'
                 'FILTER(?component = %s) \n'
                 'FILTER(?o != mr:Component) } \n'
+                #service
+                '}}'
+                #s
                 '}\n' % (graphs, self.uri.data))
         return qstr
 
