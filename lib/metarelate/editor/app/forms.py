@@ -38,6 +38,21 @@ from metarelate.editor.settings import fuseki_process
 
 DS = metarelate.site_config['fuseki_dataset']
 
+class URLwidget(forms.TextInput):
+    """helper widget"""
+    def render(self, name, value, attrs=None):
+        if value in ('None', None):
+            tpl = value
+        else:
+            # tpl = u'<a href="%s">%s</a>' % (reverse('mapdisplay',
+            #     kwargs={'hashval' : value}), "go to replaces")
+
+            tpl = u'<a href="{u}">{u}</a>'.format(u=value.data.rstrip('>').lstrip('<'))
+        return mark_safe(tpl)
+
+    def clean(self):
+        return self.cleaned_data
+
 
 class MappingMetadata(forms.Form):
     readonly=True
@@ -50,7 +65,9 @@ class MappingMetadata(forms.Form):
     note = forms.CharField(required=False,
                           widget=forms.TextInput(attrs={'readonly':readonly, 'size':'100%'}))
     _replaces = forms.CharField(required=False,
-                          widget=forms.TextInput(attrs={'readonly':readonly, 'size':'100%'}))
+                          # widget=forms.TextInput(attrs={'readonly':readonly, 'size':'100%'}))
+                          widget=URLwidget(attrs={'readonly':readonly, 'size':'100%'}))
+    
     _valuemaps = forms.CharField(required=False,
                           widget=forms.TextInput(attrs={'readonly':readonly, 'size':'100%'}))
     _rights = forms.CharField(required=False,
